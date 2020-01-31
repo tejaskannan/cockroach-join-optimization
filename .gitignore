@@ -1,0 +1,4 @@
+*.class
+data/*
+execute.sh
+jars/*
