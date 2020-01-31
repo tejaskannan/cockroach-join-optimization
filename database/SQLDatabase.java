@@ -13,6 +13,7 @@ import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.ArrayList;
 
+import org.postgresql.ds.PGSimpleDataSource;
 import utils.Utils;
 
 
@@ -20,11 +21,27 @@ public class SQLDatabase {
 
     private DataSource ds;
     private boolean debug = false;
-    private static final int BATCH_SIZE = 1000;
+    private String server;
+    private int port;
+    private String dbName;
+    private String userName;
 
+    public SQLDatabase(String server, int port, String dbName, String userName) {
+        this.server = server;
+        this.port = port;
+        this.dbName = dbName;
+        this.userName = userName;
 
-    public SQLDatabase(DataSource ds) {
+        // Initialize data source
+        PGSimpleDataSource ds = new PGSimpleDataSource();
+        ds.setServerName(server); 
+        ds.setPortNumber(port);
+        ds.setDatabaseName(dbName);
+        ds.setUser(userName);
+        ds.setPassword(null);
+        ds.setSsl(false);
         this.ds = ds;
+    
     }
 
     public void setDebug(boolean d) {
@@ -94,11 +111,8 @@ public class SQLDatabase {
         return tables;
     }
 
-
-    // TODO: Don't return a ResulSet because we cannot access it once the connection is closed.
-    public ResultSet execute(String sql, String... args) {
-        ResultSet rs = null;
-
+    public boolean select(String sql, String... args) {
+        boolean returnVal = false;
         try (Connection connection = ds.getConnection()) {
             try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
  
@@ -112,99 +126,36 @@ public class SQLDatabase {
                     }
                 }
             
-                boolean rv = pstmt.execute();
-                if (rv) {
-                    rs = pstmt.getResultSet();
-                    if (this.debug) {
-                        Utils.printResultSet(rs);
-                    }
-                }
+                returnVal = pstmt.execute();
+                if (returnVal) {
+                    ResultSet rs = pstmt.getResultSet();
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int numColumns = meta.getColumnCount();
 
+                    // Iterate through the result set
+                    while (rs.next()) {
+                        for (int i = 1; i <= numColumns; i++) {
+                            String name = meta.getColumnName(i);
+                            String type = meta.getColumnTypeName(i);
+                        
+                            if (type.equals("int8")) {
+                                int val = rs.getInt(name);
+                                System.out.printf("    %-8s -> %10s\n", name, val);
+                            } else {
+                                String str = rs.getString(name);
+                                System.out.printf("    %-8s -> %10s\n", name, str);
+                            }
+                        }
+                    }
+                }    
             } catch (SQLException ex) {
                 System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
                               ex.getSQLState(), ex.getCause(), ex.getMessage());
-                rs = null;
             }
         } catch (SQLException ex) {
             System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
                               ex.getSQLState(), ex.getCause(), ex.getMessage());
-            rs = null;
         }
-        return rs;
+        return returnVal;
     }
-
-    public int uploadCsvAsTable(String path, String tableName, String[] columns) {
-
-        BufferedReader csvReader = null;
-        try {
-            csvReader = new BufferedReader(new FileReader(path));
-        } catch (FileNotFoundException ex) {
-            System.out.printf("Caught FileNotFoundExeception: %s\n", ex.getMessage());
-            return 0;
-        }
-
-        String[] headers;
-        try {
-            String row = csvReader.readLine();
-            headers = row.split(",");
-            String[] dataTypes = new String[headers.length];
-        } catch (IOException ex) {
-            System.out.printf("Caught IOException: %s\n", ex.getMessage());
-            return 0;
-        }
-
-        // Get Column Indices
-        int[] indices = new int[headers.length];
-        for (int i = 0; i < columns.length; i++) {
-            for (int j = 0; j < headers.length; j++) {
-                if (headers[j].equals(columns[i])) {
-                    indices[i] = j;
-                    break;
-                }
-            }
-        }
-    
-        // Upload the data
-        StringBuilder insertBuilder = new StringBuilder();
-        insertBuilder.append("INSERT INTO soccer.");
-        insertBuilder.append(tableName);
-        insertBuilder.append(" VALUES (");
-
-        try {
-            String row;
-            String insertQuery = insertBuilder.toString();
-            while ((row = csvReader.readLine()) != null) {
-                String[] data = row.split(",");
-                // String[] insertData = new String[indices.length];
-                String query = insertQuery;
-                
-                for (int i = 0; i < indices.length; i++) {
-                    query += data[indices[i]];
-                    if (i < indices.length - 1) {
-                        query += ", ";
-                    }
-                }
-                query += ");";
-                execute(query);
-            }
-        } catch (IOException ex) {
-            System.out.printf("Caught IOException: %s\n", ex.getMessage());
-            return 0;
-        }
-
-        return 1;
-    }
-
-    private String getDataType(String val) {
-        try {
-            Integer.parseInt(val);
-            return "int";
-        } catch (NumberFormatException ex) {
-            return "varchar(100)";
-        } finally {
-            return "varchar(100)";
-        } 
-    }
-
-
 }
