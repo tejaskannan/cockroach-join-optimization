@@ -5,22 +5,25 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.io.FileReader;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.util.HashMap;
+import java.util.ArrayList;
 
 import utils.Utils;
 
 
-public class SQLTable {
+public class SQLDatabase {
 
     private DataSource ds;
     private boolean debug = false;
     private static final int BATCH_SIZE = 1000;
 
 
-    public SQLTable(DataSource ds) {
+    public SQLDatabase(DataSource ds) {
         this.ds = ds;
     }
 
@@ -28,6 +31,71 @@ public class SQLTable {
         this.debug = d;
     }
 
+
+    public HashMap<String, Statistics> getColumnStats(String tableName) {
+    
+        HashMap<String, Statistics> result = new HashMap<String, Statistics>();
+        String query = "SHOW STATISTICS FOR TABLE " + tableName + ";";  // Use prepared statement to avoid SQL Injection attacks
+        
+        try (Connection connection = ds.getConnection()) {
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                boolean rv = pstmt.execute();
+
+                if (rv) {
+                    ResultSet rs = pstmt.getResultSet();
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int numColumns = meta.getColumnCount();
+
+                    while (rs.next()) {
+                        String colName = rs.getString("column_names");
+                        Statistics stats = new Statistics(tableName, colName,
+                                                          rs.getInt("row_count"), rs.getInt("distinct_count"));
+                        result.put(colName, stats);
+                    }
+                }
+            } catch (SQLException ex) {
+                 System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
+                                   ex.getSQLState(), ex.getCause(), ex.getMessage());
+            }
+        } catch (SQLException ex) {
+             System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
+                               ex.getSQLState(), ex.getCause(), ex.getMessage());
+        }
+
+        return result;
+    }
+
+    public ArrayList<String> getTables() {
+        ArrayList<String> tables = new ArrayList<String>();
+
+        try (Connection connection = ds.getConnection()) {
+            try (PreparedStatement pstmt = connection.prepareStatement("SHOW TABLES")) {
+                boolean rv = pstmt.execute();
+
+                if (rv) {
+                    ResultSet rs = pstmt.getResultSet();
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int numColumns = meta.getColumnCount();
+
+                    while (rs.next()) {
+                        String tableName = rs.getString("table_name");
+                        tables.add(tableName);
+                    }
+                }
+            } catch (SQLException ex) {
+                 System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
+                                   ex.getSQLState(), ex.getCause(), ex.getMessage());
+            }
+        } catch (SQLException ex) {
+             System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
+                               ex.getSQLState(), ex.getCause(), ex.getMessage());
+        
+        }
+        return tables;
+    }
+
+
+    // TODO: Don't return a ResulSet because we cannot access it once the connection is closed.
     public ResultSet execute(String sql, String... args) {
         ResultSet rs = null;
 
