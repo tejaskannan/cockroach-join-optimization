@@ -25,6 +25,8 @@ public class SQLDatabase {
     private int port;
     private String dbName;
     private String userName;
+    private HashMap<String, HashMap<String, Statistics>> tableStats;
+
 
     public SQLDatabase(String server, int port, String dbName, String userName) {
         this.server = server;
@@ -41,7 +43,15 @@ public class SQLDatabase {
         ds.setPassword(null);
         ds.setSsl(false);
         this.ds = ds;
-    
+ 
+        this.tableStats = new HashMap<String, HashMap<String, Statistics>>();
+    }
+
+    public void refreshStats() {
+        ArrayList<String> tables = this.getTables();
+        for (String table : tables) {
+            this.tableStats.put(table, this.getColumnStats(table));
+        }
     }
 
     public void setDebug(boolean d) {

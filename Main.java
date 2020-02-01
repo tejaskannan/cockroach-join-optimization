@@ -11,7 +11,9 @@ public class Main {
      
         System.out.println("Starting Join Optimizer Interface to Cockroach DB...");
         Scanner inputReader = new Scanner(System.in);
+
         
+
         SQLDatabase db = null;
         StringBuilder cmd = new StringBuilder();
         boolean run = true;
@@ -25,6 +27,7 @@ public class Main {
                 run = false;
             } else if (tokens[0].equals("CONNECT")) {
                 db = new SQLDatabase("localhost", 26257, tokens[1], tokens[2]);
+                db.refreshStats();
                 System.out.println("Connected to database");
             } else if (tokens[0].equals("SELECT")) {
                 if (db == null) {
