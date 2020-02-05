@@ -7,6 +7,11 @@ import java.sql.SQLException;
 
 public class Utils {
 
+    public static void printSQLException(SQLException ex) {
+        System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
+                          ex.getSQLState(), ex.getCause(), ex.getMessage());
+    }
+
     public static void printResultSet(ResultSet rs) {
         try {
             ResultSetMetaData meta = rs.getMetaData();

@@ -48,6 +48,7 @@ public class SQLDatabase {
     }
 
     public void refreshStats() {
+        // TODO: Do this in a synchronous manner to support refreshing in another thread
         ArrayList<String> tables = this.getTables();
         for (String table : tables) {
             this.tableStats.put(table, this.getColumnStats(table));
@@ -57,7 +58,6 @@ public class SQLDatabase {
     public void setDebug(boolean d) {
         this.debug = d;
     }
-
 
     public HashMap<String, Statistics> getColumnStats(String tableName) {
     
@@ -81,12 +81,10 @@ public class SQLDatabase {
                     }
                 }
             } catch (SQLException ex) {
-                 System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
-                                   ex.getSQLState(), ex.getCause(), ex.getMessage());
+                 Utils.printSQLException(ex);
             }
         } catch (SQLException ex) {
-             System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
-                               ex.getSQLState(), ex.getCause(), ex.getMessage());
+            Utils.printSQLException(ex);
         }
 
         return result;
@@ -110,13 +108,10 @@ public class SQLDatabase {
                     }
                 }
             } catch (SQLException ex) {
-                 System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
-                                   ex.getSQLState(), ex.getCause(), ex.getMessage());
+                Utils.printSQLException(ex);
             }
         } catch (SQLException ex) {
-             System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
-                               ex.getSQLState(), ex.getCause(), ex.getMessage());
-        
+            Utils.printSQLException(ex); 
         }
         return tables;
     }
@@ -159,13 +154,109 @@ public class SQLDatabase {
                     }
                 }    
             } catch (SQLException ex) {
-                System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
-                              ex.getSQLState(), ex.getCause(), ex.getMessage());
+                Utils.printSQLException(ex);
             }
         } catch (SQLException ex) {
-            System.out.printf("SQL Execution ERROR: { state => %s, cause => %s, message => %s }\n",
-                              ex.getSQLState(), ex.getCause(), ex.getMessage());
+            Utils.printSQLException(ex);
         }
         return returnVal;
     }
+
+    public int createTables(String path) {
+        int numCreated = 0;
+        BufferedReader reader;
+
+        try (Connection connection = this.ds.getConnection()) {
+            reader = new BufferedReader(new FileReader(path));
+            String line = reader.readLine();
+            StringBuilder cmd = new StringBuilder();
+
+            connection.setAutoCommit(false);
+            while (line != null) {
+                line = line.trim();
+                cmd.append(line);
+                if (line.endsWith(";")) {
+                    String createTableCmd = cmd.toString();
+                    boolean isSuccess = execute(createTableCmd, connection);
+                    numCreated += isSuccess ? 1 : 0;
+                    cmd = new StringBuilder();  // Clear the buffer
+                    connection.commit();
+                }
+                line = reader.readLine();
+            }
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        }
+        catch (IOException ex) {
+            System.out.printf("Caught IO Exception: %s\n", ex.getMessage());
+        }
+        return numCreated;
+    }
+
+    public int importCsv(String tableName, String filePath) {
+        String home = System.getenv("COCKROACH_OPT_HOME");
+        String fullPath = home + "/" + filePath;
+        System.out.println(fullPath);
+
+        // TODO: Batch inserts
+        int insertCount = 0;
+        String headers = null;
+        try (Connection connection = this.ds.getConnection()) {
+            BufferedReader reader = new BufferedReader(new FileReader(fullPath));
+            headers = reader.readLine().trim();
+            int numHeaders = headers.split(",").length;
+
+            String insertQuery = "INSERT INTO %s (%s) VALUES (%s);";
+            String line = reader.readLine();
+            while (line != null) {
+                String[] tokens = line.split(",");
+                String[] cleanedTokens = new String[tokens.length];
+                
+                for (int i = 0; i < tokens.length; i++) {
+                    try {
+                        Integer.parseInt(tokens[i]);
+                        cleanedTokens[i] = tokens[i];
+                    } catch (NumberFormatException ex1) {
+                        try {
+                            Float.parseFloat(tokens[i]);
+                            cleanedTokens[i] = tokens[i];
+                        } catch (NumberFormatException ex2) {
+                            cleanedTokens[i] = String.format("'%s'", tokens[i]);
+                        }
+                    }
+                }
+
+                if (tokens.length == numHeaders) {
+                    String values = String.join(",", cleanedTokens);
+                    String sql = String.format(insertQuery, tableName, headers, values);
+                    try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                       insertCount += pstmt.executeUpdate();
+                    } catch (SQLException ex) {
+                        Utils.printSQLException(ex);
+                    }
+                }
+                line = reader.readLine();
+            }
+
+            return insertCount;
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        } catch (IOException ex) {
+            System.out.printf("Caught IO Exception: %s\n", ex.getMessage());
+        }
+
+        return 0;
+    }
+
+
+    private boolean execute(String sql, Connection connection) {
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.execute();
+            return true;
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        }
+        return false;
+    }
+
 }
