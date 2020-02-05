@@ -116,7 +116,7 @@ public class SQLDatabase {
         return tables;
     }
 
-    public boolean select(String sql, String... args) {
+    public boolean select(String sql, boolean shouldPrint, String... args) {
         boolean returnVal = false;
         try (Connection connection = ds.getConnection()) {
             try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
@@ -143,12 +143,14 @@ public class SQLDatabase {
                             String name = meta.getColumnName(i);
                             String type = meta.getColumnTypeName(i);
                         
-                            if (type.equals("int8")) {
-                                int val = rs.getInt(name);
-                                System.out.printf("    %-8s -> %10s\n", name, val);
-                            } else {
-                                String str = rs.getString(name);
-                                System.out.printf("    %-8s -> %10s\n", name, str);
+                            if (shouldPrint) {
+                                if (type.equals("int8")) {
+                                    int val = rs.getInt(name);
+                                    System.out.printf("    %-8s -> %10s\n", name, val);
+                                } else {
+                                    String str = rs.getString(name);
+                                    System.out.printf("    %-8s -> %10s\n", name, str);
+                                }
                             }
                         }
                     }

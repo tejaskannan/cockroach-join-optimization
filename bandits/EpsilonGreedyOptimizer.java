@@ -7,9 +7,10 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
 
     private double epsilon;
     private Random rand;
+    private static final double ANNEAL_RATE = 0.95;
 
-    public EpsilonGreedyOptimizer(double epsilon, int numArms) {
-        super(numArms);
+    public EpsilonGreedyOptimizer(double epsilon, int numArms, int numTypes) {
+        super(numArms, numTypes);
 
         this.rand = new Random();
         if (epsilon < 0.0) {
@@ -22,7 +23,9 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public void update(int arm, double reward) {
+    public void update(int arm, int type, double reward) {
+        this.epsilon = this.epsilon * ANNEAL_RATE;
+        reward = super.normalizeReward(type, reward);
         super.addReward(arm, reward);
         super.incrementCount(arm);
     }
