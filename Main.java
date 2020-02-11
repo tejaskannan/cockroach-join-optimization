@@ -90,6 +90,10 @@ public class Main {
                     double[] times = runOptimizer(db, optName, queries, numTrials, optArgs);
                     Utils.writeResults(optName + "_results.txt", times);
                 }
+            } else if (cmd.equals("PARSE")) {
+                List<String> queries = Utils.readQueries(tokens[1]);
+                SQLParser parser = new SQLParser();
+                parser.whereToInnerJoin(queries.get(0));
             }
             else {
                 System.out.printf("Unknown command %s\n", tokens[0]);

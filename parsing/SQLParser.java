@@ -37,7 +37,8 @@ public class SQLParser {
                 }
             }
         } catch (JSQLParserException ex) {
-            System.out.printf("Caught error when parsing: %s\n", ex.getMessage());
+            ex.printStackTrace();
+            // System.out.printf("Caught error when parsing: %s\n", ex.getMessage());
         }
         return sql;
     }

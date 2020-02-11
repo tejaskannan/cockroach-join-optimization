@@ -3,6 +3,7 @@ package parsing;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.HashMap;
 
 import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.expression.operators.arithmetic.*;
@@ -11,18 +12,19 @@ import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.schema.Column;
-// import net.sf.jsqlparser.statement.select.FromItemVisitor;
-// import net.sf.jsqlparser.statement.select.SelectVisitor;
-// import net.sf.jsqlparser.statement.select.JoinVisitor;
-// import net.sf.jsqlparser.statement.select.ExpressionVisitor;
-// import net.sf.jsqlparser.statement.select.ItemsListVisitor;
 
 
 public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, ExpressionVisitor, ItemsListVisitor {
-	private List<String> tables;
+	
+    private List<String> tables;
+    private List<String> aliases;
+    private List<TableJoin> joins;
+
 
 	public List<String> getTableList(Select select) {
 		tables = new ArrayList<String>();
+        aliases = new ArrayList<String>();
+        joins = new ArrayList<TableJoin>();
 		select.getSelectBody().accept(this);
 		return tables;
 	}
@@ -37,9 +39,10 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 				join.getRightItem().accept(this);
 			}
 		}
-		if (plainSelect.getWhere() != null)
-			plainSelect.getWhere().accept(this);
 
+		if (plainSelect.getWhere() != null) {
+			plainSelect.getWhere().accept(this);
+        }
 	}
 
     @Override
@@ -53,7 +56,12 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
     @Override
 	public void visit(Table tableName) {
 		String tableWholeName = tableName.getWholeTableName();
-		tables.add(tableWholeName);
+		String alias = tableName.getAlias();
+
+        tables.add(tableWholeName);
+        if (alias != null && alias.length() > 0) {
+            aliases.add(alias);
+        }
 	}
 
     @Override
@@ -63,7 +71,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 
     @Override
 	public void visit(SubJoin subjoin) {
-		subjoin.getLeft().accept(this);
+        subjoin.getLeft().accept(this);
 		subjoin.getJoin().getRightItem().accept(this);
 	}
 
@@ -97,7 +105,16 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 
     @Override
 	public void visit(EqualsTo equalsTo) {
-		visitBinaryExpression(equalsTo);
+        Expression left = equalsTo.getLeftExpression();
+        Expression right = equalsTo.getRightExpression();
+
+		if (left instanceof Column && right instanceof Column) {
+            TableJoin join = new TableJoin((Column) left, (Column) right);
+            System.out.println(join);
+            joins.add(join);
+        } else {
+            visitBinaryExpression(equalsTo);
+       }
 	}
 
     @Override
@@ -211,7 +228,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
     }
 	
     public void visitBinaryExpression(BinaryExpression binaryExpression) {
-		binaryExpression.getLeftExpression().accept(this);
+        binaryExpression.getLeftExpression().accept(this);
 		binaryExpression.getRightExpression().accept(this);
 	}
 

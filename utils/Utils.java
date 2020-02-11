@@ -35,7 +35,7 @@ public class Utils {
 
             String line = reader.readLine();
             while (line != null) {
-                q.append(line);
+                q.append(line + " ");
                 if (line.endsWith(";")) {
                     queries.add(q.toString());
                     q = new StringBuilder();
