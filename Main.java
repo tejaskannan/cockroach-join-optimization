@@ -102,7 +102,8 @@ public class Main {
         
         List<List<String>> joinQueries = new ArrayList<List<String>>();
         for (String query : queries) {
-            List<String> joinOptions = parser.getJoinOptions(query);
+            String innerJoinQuery = parser.whereToInnerJoin(query);
+            List<String> joinOptions = parser.getJoinOptions(innerJoinQuery);
             joinQueries.add(joinOptions);
         }
 
