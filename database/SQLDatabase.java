@@ -27,6 +27,7 @@ public class SQLDatabase {
     private String userName;
     private HashMap<String, HashMap<String, Statistics>> tableStats;
 
+    private static final int BATCH_SIZE = 1000;
 
     public SQLDatabase(String server, int port, String dbName, String userName) {
         this.server = server;
@@ -132,7 +133,8 @@ public class SQLDatabase {
                 }
             
                 returnVal = pstmt.execute();
-                if (returnVal) {
+
+                if (returnVal && shouldPrint) {
                     ResultSet rs = pstmt.getResultSet();
                     ResultSetMetaData meta = rs.getMetaData();
                     int numColumns = meta.getColumnCount();
@@ -142,15 +144,13 @@ public class SQLDatabase {
                         for (int i = 1; i <= numColumns; i++) {
                             String name = meta.getColumnName(i);
                             String type = meta.getColumnTypeName(i);
-                        
-                            if (shouldPrint) {
-                                if (type.equals("int8")) {
-                                    int val = rs.getInt(name);
-                                    System.out.printf("    %-8s -> %10s\n", name, val);
-                                } else {
-                                    String str = rs.getString(name);
-                                    System.out.printf("    %-8s -> %10s\n", name, str);
-                                }
+
+                            if (type.equals("int8")) {
+                                int val = rs.getInt(name);
+                                System.out.printf("    %-8s -> %10s\n", name, val);
+                            } else {
+                                String str = rs.getString(name);
+                                System.out.printf("    %-8s -> %10s\n", name, str);
                             }
                         }
                     }
@@ -196,24 +196,27 @@ public class SQLDatabase {
     }
 
     public int importCsv(String tableName, String filePath) {
-        String home = System.getenv("COCKROACH_OPT_HOME");
-        String fullPath = home + "/" + filePath;
-        System.out.println(fullPath);
-
-        // TODO: Batch inserts
         int insertCount = 0;
         String headers = null;
         try (Connection connection = this.ds.getConnection()) {
-            BufferedReader reader = new BufferedReader(new FileReader(fullPath));
+            // Read the file
+            BufferedReader reader = new BufferedReader(new FileReader(filePath));
+            
+            // Obtain the data headers
             headers = reader.readLine().trim();
             int numHeaders = headers.split(",").length;
 
-            String insertQuery = "INSERT INTO %s (%s) VALUES (%s);";
+            // Format query and records list
+            String insertQuery = "INSERT INTO %s (%s) VALUES %s;";
+            ArrayList<String> insertList = new ArrayList<String>();
+
+            // Read data line-by-line
             String line = reader.readLine();
             while (line != null) {
                 String[] tokens = line.split(",");
                 String[] cleanedTokens = new String[tokens.length];
                 
+                // Convert to correct data types
                 for (int i = 0; i < tokens.length; i++) {
                     try {
                         Integer.parseInt(tokens[i]);
@@ -223,21 +226,41 @@ public class SQLDatabase {
                             Float.parseFloat(tokens[i]);
                             cleanedTokens[i] = tokens[i];
                         } catch (NumberFormatException ex2) {
-                            cleanedTokens[i] = String.format("'%s'", tokens[i]);
+                            cleanedTokens[i] = String.format("'%s'", tokens[i].replace("'", "''"));
                         }
                     }
                 }
 
                 if (tokens.length == numHeaders) {
                     String values = String.join(",", cleanedTokens);
-                    String sql = String.format(insertQuery, tableName, headers, values);
+                    insertList.add("(" + values + ")"); 
+                }
+
+                // Batch insert when size threshold reached
+                if (insertList.size() >= BATCH_SIZE) {
+                    String records = String.join(", ", insertList);
+                    String sql = String.format(insertQuery, tableName, headers, records);
                     try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
                        insertCount += pstmt.executeUpdate();
                     } catch (SQLException ex) {
                         Utils.printSQLException(ex);
                     }
+
+                    System.out.printf("Inserted %d records.\r", insertCount);
+                    insertList = new ArrayList<String>();
                 }
                 line = reader.readLine();
+            }
+
+            // Cleanup Insertions
+            if (insertList.size() > 0) {
+                String records = String.join(", ", insertList);
+                String sql = String.format(insertQuery, tableName, headers, records);
+                try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                   insertCount += pstmt.executeUpdate();
+                } catch (SQLException ex) {
+                    Utils.printSQLException(ex);
+                }
             }
 
             return insertCount;
