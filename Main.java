@@ -7,6 +7,7 @@ import utils.Utils;
 import database.SQLDatabase;
 import bandits.OptimizerFactory;
 import bandits.BanditOptimizer;
+import bandits.LinearThompsonSamplingOptimizer;
 import parsing.SQLParser;
 
 
@@ -75,20 +76,40 @@ public class Main {
             } else if (cmd.equals("RUN")) {
                 if (db == null) {
                     System.out.println("Not connected to a database.");
-                } else if (tokens.length < 4) {
-                    System.out.println("Must provide an optimizer name, query file and number of trials.");
+                // } 
+                // else if (tokens.length < 4) {
+                //     System.out.println("Must provide an optimizer name, query file and number of trials.");
                 } else {
-                    String optName = tokens[1];
-                    List<String> queries = Utils.readQueries(tokens[2]);
-                    int numTrials = Integer.parseInt(Utils.strip(tokens[3]));
+                    List<String> queries = new ArrayList<String>() {{
+                        add("SELECT * FROM player AS p INNER HASH JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id");
+                        add("SELECT * FROM player_attributes AS pa INNER HASH JOIN player AS p ON pa.player_api_id = p.player_api_id");
+                    }};
 
-                    double[] optArgs = new double[tokens.length - 4];
-                    for (int i = 4; i < tokens.length; i++) {
-                        optArgs[i-4] = Double.parseDouble(Utils.strip(tokens[i]));
-                    }
+                    List<List<String>> tableOrders = new ArrayList<List<String>>() {{
+                        add(new ArrayList<String>() {{ add("player"); add("player_attributes"); }});
+                        add(new ArrayList<String>() {{ add("player_attributes"); add("player"); }});
+                    }};
 
-                    double[] times = runOptimizer(db, optName, queries, numTrials, optArgs);
-                    Utils.writeResults(optName + "_results.txt", times);
+                    List<List<String>> colOrders = new ArrayList<List<String>>() {{
+                        add(new ArrayList<String>() {{ add("player_api_id"); add("player_api_id"); }});
+                        add(new ArrayList<String>() {{ add("player_api_id"); add("player_api_id"); }});
+                    }};
+
+                    BanditOptimizer optimizer = new LinearThompsonSamplingOptimizer(queries.size(), 1, 4, 0.01, 10.0);
+
+                    db.runJoinQuery(queries, tableOrders, colOrders, optimizer, 10);
+ 
+                   // String optName = tokens[1];
+                   // List<String> queries = Utils.readQueries(tokens[2]);
+                   // int numTrials = Integer.parseInt(Utils.strip(tokens[3]));
+
+                   // double[] optArgs = new double[tokens.length - 4];
+                   // for (int i = 4; i < tokens.length; i++) {
+                   //     optArgs[i-4] = Double.parseDouble(Utils.strip(tokens[i]));
+                   // }
+
+                   // double[] times = runOptimizer(db, optName, queries, numTrials, optArgs);
+                   // Utils.writeResults(optName + "_results.txt", times);
                 }
             } else if (cmd.equals("PARSE")) {
                 List<String> queries = Utils.readQueries(tokens[1]);
@@ -101,42 +122,42 @@ public class Main {
         }
     }
 
-    private static double[] runOptimizer(SQLDatabase db, String optimizerName, List<String> queries, int trials, double... args) {
-        SQLParser parser = new SQLParser();
-        
-        List<List<String>> joinQueries = new ArrayList<List<String>>();
-        for (String query : queries) {
-            String innerJoinQuery = parser.whereToInnerJoin(query);
-            List<String> joinOptions = parser.getJoinOptions(innerJoinQuery);
-            joinQueries.add(joinOptions);
-        }
-
-        // For now, we assume that all queries have the same number of joins
-        int numArms = joinQueries.get(0).size();
-        int numTypes = joinQueries.size();
-        BanditOptimizer opt = OptimizerFactory.banditFactory(optimizerName, numArms, numTypes, args);
-
-        double[] times = new double[trials];
-        Random rand = new Random();
-        for (int i = 0; i <= trials; i++) {
-            int queryType =  rand.nextInt(joinQueries.size());
-            List<String> options = joinQueries.get(queryType);
-            
-            long start = System.currentTimeMillis();
-            int arm = opt.getArm(i);
-            String chosenQuery = options.get(arm);
-            db.select(chosenQuery, false);
-            long end = System.currentTimeMillis();
-
-            if (i > 0) {
-                double elapsed = (double) (end - start);
-                opt.update(arm, queryType, -1 * elapsed);
-                times[i-1] = opt.normalizeReward(queryType, elapsed);
-            }
-        }
-
-        return times;
-    }
+//    private static double[] runOptimizer(SQLDatabase db, String optimizerName, List<String> queries, int trials, double... args) {
+//        SQLParser parser = new SQLParser();
+//        
+//        List<List<String>> joinQueries = new ArrayList<List<String>>();
+//        for (String query : queries) {
+//            String innerJoinQuery = parser.whereToInnerJoin(query);
+//            List<String> joinOptions = parser.getJoinOptions(innerJoinQuery);
+//            joinQueries.add(joinOptions);
+//        }
+//
+//        // For now, we assume that all queries have the same number of joins
+//        int numArms = joinQueries.get(0).size();
+//        int numTypes = joinQueries.size();
+//        BanditOptimizer opt = OptimizerFactory.banditFactory(optimizerName, numArms, numTypes, args);
+//
+//        double[] times = new double[trials];
+//        Random rand = new Random();
+//        for (int i = 0; i <= trials; i++) {
+//            int queryType =  rand.nextInt(joinQueries.size());
+//            List<String> options = joinQueries.get(queryType);
+//            
+//            long start = System.currentTimeMillis();
+//            int arm = opt.getArm(i);
+//            String chosenQuery = options.get(arm);
+//            db.select(chosenQuery, false);
+//            long end = System.currentTimeMillis();
+//
+//            if (i > 0) {
+//                double elapsed = (double) (end - start);
+//                opt.update(arm, queryType, -1 * elapsed);
+//                times[i-1] = opt.normalizeReward(queryType, elapsed);
+//            }
+//        }
+//
+//        return times;
+//    }
 
 }
 

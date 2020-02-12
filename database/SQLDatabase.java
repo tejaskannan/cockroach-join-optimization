@@ -12,9 +12,13 @@ import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.postgresql.ds.PGSimpleDataSource;
+import org.la4j.Vector;
 import utils.Utils;
+import parsing.SQLParser;
+import bandits.BanditOptimizer;
 
 
 public class SQLDatabase {
@@ -90,6 +94,51 @@ public class SQLDatabase {
 
         return result;
     }
+
+
+    public void runJoinQuery(List<String> queryOrders, List<List<String>> tableOrders, List<List<String>> columnOrders, BanditOptimizer optimizer, int numTrials) {
+        // 1) Extract tables
+        SQLParser parser = new SQLParser();
+
+        // 2) Lookup statistics in dictionary
+        ArrayList<Vector> stats = new ArrayList<Vector>();
+        for (int i = 0; i < tableOrders.size(); i++) {
+            List<String> tableOrder = tableOrders.get(i);
+            List<String> colOrder = columnOrders.get(i);
+            
+            double[] statsList = new double[tableOrder.size() * 2];;
+            for (int j = 0; j < tableOrder.size(); j++) {
+                String table = tableOrder.get(j);
+                String column = colOrder.get(j);
+
+                Statistics colStats = this.tableStats.get(table).get(String.format("{%s}", column));
+                double[] features = colStats.getFeatures();
+                statsList[2 * j] = features[0];
+                statsList[2 * j + 1] = features[1];
+            }
+
+            Vector statsVector = Vector.fromArray(statsList);
+            stats.add(statsVector);
+        }
+
+        int queryType = 0;
+        double[] times = new double[numTrials];
+        for (int i = 0; i < numTrials; i++) {
+            long start = System.currentTimeMillis();
+            int arm = optimizer.getArm(i + 1, stats);
+            String chosenQuery = queryOrders.get(arm);
+            Vector chosenContext = stats.get(arm);
+            this.select(chosenQuery, false);
+            long end = System.currentTimeMillis();
+
+            if (i > 0) {
+                double elapsed = (double) (end - start);
+                optimizer.update(arm, queryType, -1 * elapsed, chosenContext);
+                times[i-1] = optimizer.normalizeReward(queryType, elapsed);
+            }
+        }
+    }
+
 
     public ArrayList<String> getTables() {
         ArrayList<String> tables = new ArrayList<String>();

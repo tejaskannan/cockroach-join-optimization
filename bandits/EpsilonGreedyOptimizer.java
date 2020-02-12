@@ -1,6 +1,8 @@
 package bandits;
 
 import java.util.Random;
+import java.util.List;
+import org.la4j.Vector;
 
 
 public class EpsilonGreedyOptimizer extends BanditOptimizer {
@@ -23,7 +25,7 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public void update(int arm, int type, double reward) {
+    public void update(int arm, int type, double reward, Vector context) {
         this.epsilon = this.epsilon * ANNEAL_RATE;
         reward = super.normalizeReward(type, reward);
         super.addReward(arm, reward);
@@ -31,7 +33,7 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public int getArm(int time) {
+    public int getArm(int time, List<Vector> contexts) {
         if (Math.random() < this.epsilon) {
             return this.rand.nextInt(super.getNumArms());
         }

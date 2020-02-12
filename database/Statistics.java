@@ -7,17 +7,17 @@ public class Statistics {
     private String columnName;
     private int numRows;
     private int numDistinct;
-    private int[] features;
+    private double[] features;
 
     public Statistics(String tableName, String columnName, int numRows, int numDistinct) {
         this.tableName = tableName;
         this.columnName = columnName;
         this.numRows = numRows;
         this.numDistinct = numDistinct;
-        this.features = new int[]{numRows, numDistinct};
+        this.features = new double[]{ (double) numRows, (double) numDistinct};
     }
 
-    public int[] getFeatures() {
+    public double[] getFeatures() {
         return this.features;
     }
 

@@ -1,6 +1,8 @@
 package bandits;
 
 import java.util.Random;
+import java.util.List;
+import org.la4j.Vector;
 
 
 public class RandomOptimizer extends BanditOptimizer {
@@ -13,7 +15,7 @@ public class RandomOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public int getArm(int time) {
+    public int getArm(int time, List<Vector> contexts) {
         return this.rand.nextInt(super.getNumArms());
     }
 }

@@ -1,5 +1,10 @@
 package bandits;
 
+
+import java.util.List;
+import org.la4j.Vector;
+
+
 public abstract class BanditOptimizer {
 
     private double[] rewards;
@@ -49,7 +54,7 @@ public abstract class BanditOptimizer {
         return this.counts[arm];   
     }
     
-    public void update(int arm, int type, double reward) { }
+    public void update(int arm, int type, double reward, Vector context) { }
 
-    public abstract int getArm(int time);
+    public abstract int getArm(int time, List<Vector> contexts);
 }

@@ -1,5 +1,8 @@
 package bandits;
 
+import java.util.List;
+import org.la4j.Vector;
+
 
 public class UCBOptimizer extends BanditOptimizer {
 
@@ -8,14 +11,14 @@ public class UCBOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public void update(int arm, int type, double reward) {
+    public void update(int arm, int type, double reward, Vector context) {
         reward = super.normalizeReward(type, reward);
         super.addReward(arm, reward);
         super.incrementCount(arm);
     }
 
     @Override
-    public int getArm(int time) {
+    public int getArm(int time, List<Vector> contexts) {
 
         int maxArm = -1;
         double maxScore = -Double.MAX_VALUE;
