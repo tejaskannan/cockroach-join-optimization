@@ -48,7 +48,7 @@ public class RewardDistribution {
 
     public double getReward(double x) {
         NormalDistribution dist = new NormalDistribution(this.getMean(), Math.sqrt(this.getVariance()));
-        return dist.cumulativeProbability(x);
+        return dist.cumulativeProbability(x) - 1.0;  // Make score in range [-1.0, 0.0]
     }
 
     private double getMean() {
@@ -69,12 +69,11 @@ public class RewardDistribution {
         }
 
         double mean = this.getMean();
-        double diff = 0.0;
+        double diff = 0.1;  // Initialize to small value to prevent zero variance
         for (double x : this.samples) {
             double d = (x - mean);
             diff += d * d;
         }
-        System.out.println(diff);
 
         return diff / ((double) this.samples.size());
     }

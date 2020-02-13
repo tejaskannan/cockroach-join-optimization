@@ -16,18 +16,23 @@ import net.sf.jsqlparser.schema.Column;
 
 public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, ExpressionVisitor, ItemsListVisitor {
 	
-    private List<String> tables;
-    private List<String> aliases;
+    private List<Table> tables;
     private List<TableJoin> joins;
 
 
-	public List<String> getTableList(Select select) {
-		tables = new ArrayList<String>();
-        aliases = new ArrayList<String>();
+	public List<Table> getTableList(Select select) {
+		tables = new ArrayList<Table>();
         joins = new ArrayList<TableJoin>();
 		select.getSelectBody().accept(this);
 		return tables;
 	}
+
+    public List<TableJoin> getJoinList(Select select) {
+        tables = new ArrayList<Table>();
+        joins = new ArrayList<TableJoin>();
+        select.getSelectBody().accept(this);
+        return joins;
+    }
 
     @Override
 	public void visit(PlainSelect plainSelect) {
@@ -37,6 +42,20 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 			for (Iterator joinsIt = plainSelect.getJoins().iterator(); joinsIt.hasNext();) {
 				Join join = (Join) joinsIt.next();
 				join.getRightItem().accept(this);
+                
+                Expression joinOn = join.getOnExpression();
+                if (joinOn != null) {
+                    if (joinOn instanceof EqualsTo) {
+                        EqualsTo equiJoin = (EqualsTo) joinOn;
+                        Expression left = equiJoin.getLeftExpression();
+                        Expression right = equiJoin.getRightExpression();
+
+		                if (left instanceof Column && right instanceof Column) {
+                            TableJoin joinColumns = new TableJoin((Column) left, (Column) right);
+                            joins.add(joinColumns);
+                        }
+                    }
+                }
 			}
 		}
 
@@ -55,13 +74,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 
     @Override
 	public void visit(Table tableName) {
-		String tableWholeName = tableName.getWholeTableName();
-		String alias = tableName.getAlias();
-
-        tables.add(tableWholeName);
-        if (alias != null && alias.length() > 0) {
-            aliases.add(alias);
-        }
+        tables.add(tableName);
 	}
 
     @Override
@@ -73,7 +86,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 	public void visit(SubJoin subjoin) {
         subjoin.getLeft().accept(this);
 		subjoin.getJoin().getRightItem().accept(this);
-	}
+    }
 
     @Override
     public void visit(Addition addition) {
@@ -107,14 +120,6 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 	public void visit(EqualsTo equalsTo) {
         Expression left = equalsTo.getLeftExpression();
         Expression right = equalsTo.getRightExpression();
-
-		if (left instanceof Column && right instanceof Column) {
-            TableJoin join = new TableJoin((Column) left, (Column) right);
-            System.out.println(join);
-            joins.add(join);
-        } else {
-            visitBinaryExpression(equalsTo);
-       }
 	}
 
     @Override
@@ -234,7 +239,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 
     @Override
 	public void visit(ExpressionList expressionList) {
-		for (Iterator iter = expressionList.getExpressions().iterator(); iter.hasNext();) {
+        for (Iterator iter = expressionList.getExpressions().iterator(); iter.hasNext();) {
 			Expression expression = (Expression) iter.next();
 			expression.accept(this);
 		}

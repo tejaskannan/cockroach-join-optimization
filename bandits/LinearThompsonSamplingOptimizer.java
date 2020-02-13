@@ -31,12 +31,6 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
         
         this.B = DenseMatrix.identity(d);
         this.unnormalizedMu = Vector.zero(d);
-
-        this.rewardDistributions = new RewardDistribution[numTypes];
-        for (int i = 0; i < numTypes; i++) {
-            this.rewardDistributions[i] = new RewardDistribution(0.1, 0.95, 5);
-        }
-        
         this.rand = new Random();
     }
 
@@ -50,9 +44,8 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
 
     @Override
     public void update(int arm, int type, double reward, Vector context) {
-        RewardDistribution rewardDistribution = this.rewardDistributions[type];
-        if (rewardDistribution.shouldUpdate()){
-            double normalizedReward = rewardDistribution.getReward(reward);
+        if (super.shouldUpdate(type)){
+            double normalizedReward = super.normalizeReward(reward, type);
             
             System.out.printf("Raw Reward: %s\n", reward);
             System.out.printf("Normalized Reward: %s\n", normalizedReward);
@@ -60,15 +53,13 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
             this.unnormalizedMu = this.unnormalizedMu.add(context.multiply(normalizedReward));
             this.B = this.B.add(context.outerProduct(context));
         }
-        rewardDistribution.addSample(reward);
+        super.recordSample(reward, type);
     }
 
     @Override
-    public int getArm(int time, List<Vector> contexts) {
+    public int getArm(int time, int type, List<Vector> contexts) {
         // For now, just assume type zero. We will need to make this a parameter.
-        int type = 0;
-        RewardDistribution rewardDistribution = this.rewardDistributions[type];
-        if (rewardDistribution.shouldActGreedy()) {
+        if (super.shouldActGreedy(type)) {
             return this.rand.nextInt(this.getNumArms());
         }
 

@@ -13,6 +13,7 @@ import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.postgresql.ds.PGSimpleDataSource;
 import org.la4j.Vector;
@@ -52,10 +53,14 @@ public class SQLDatabase {
         this.tableStats = new HashMap<String, HashMap<String, Statistics>>();
     }
 
-    public void refreshStats() {
+    public void refreshStats(boolean shouldCreate) {
         // TODO: Do this in a synchronous manner to support refreshing in another thread
         ArrayList<String> tables = this.getTables();
+
         for (String table : tables) {
+            if (shouldCreate) {
+                this.createStats(table);
+            }
             this.tableStats.put(table, this.getColumnStats(table));
         }
     }
@@ -95,50 +100,94 @@ public class SQLDatabase {
         return result;
     }
 
+    public void createStats(String table) {
+        String query = String.format("CREATE STATISTICS %s FROM %s;", table, table);  // Use prepared statement to avoid injection attacks
 
-    public void runJoinQuery(List<String> queryOrders, List<List<String>> tableOrders, List<List<String>> columnOrders, BanditOptimizer optimizer, int numTrials) {
+        try (Connection connection = ds.getConnection()) {
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.execute();
+            } catch (SQLException ex) {
+                Utils.printSQLException(ex);
+            }
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        }
+    }
+
+    private Vector getStats(List<String> tableOrder, List<String> colOrder) {
+        double[] statsList = new double[tableOrder.size() * 2];
+         
+        for (int j = 0; j < tableOrder.size(); j++) {
+            String table = tableOrder.get(j);
+            String column = colOrder.get(j);
+           
+            Statistics colStats = this.tableStats.get(table).get(String.format("{%s}", column));
+            double[] features = colStats.getFeatures();
+            statsList[2 * j] = features[0];
+            statsList[2 * j + 1] = features[1];
+        }
+
+        return Vector.fromArray(statsList);
+    }
+
+    public void runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials) {
         // 1) Extract tables
         SQLParser parser = new SQLParser();
 
+
         // 2) Lookup statistics in dictionary
-        ArrayList<Vector> stats = new ArrayList<Vector>();
-        for (int i = 0; i < tableOrders.size(); i++) {
-            List<String> tableOrder = tableOrders.get(i);
-            List<String> colOrder = columnOrders.get(i);
-            
-            double[] statsList = new double[tableOrder.size() * 2];;
-            for (int j = 0; j < tableOrder.size(); j++) {
-                String table = tableOrder.get(j);
-                String column = colOrder.get(j);
+       // ArrayList<Vector> stats = new ArrayList<Vector>();
+       // for (int i = 0; i < tableOrders.size(); i++) {
+       //     List<String> tableOrder = tableOrders.get(i);
+       //     List<String> colOrder = columnOrders.get(i);
+       //     
+       //     double[] statsList = new double[tableOrder.size() * 2];;
+       //     for (int j = 0; j < tableOrder.size(); j++) {
+       //         String table = tableOrder.get(j);
+       //         String column = colOrder.get(j);
 
-                Statistics colStats = this.tableStats.get(table).get(String.format("{%s}", column));
-                double[] features = colStats.getFeatures();
-                statsList[2 * j] = features[0];
-                statsList[2 * j + 1] = features[1];
-            }
+       //         Statistics colStats = this.tableStats.get(table).get(String.format("{%s}", column));
+       //         double[] features = colStats.getFeatures();
+       //         statsList[2 * j] = features[0];
+       //         statsList[2 * j + 1] = features[1];
+       //     }
 
-            Vector statsVector = Vector.fromArray(statsList);
-            stats.add(statsVector);
-        }
+       //     Vector statsVector = Vector.fromArray(statsList);
+       //     stats.add(statsVector);
+       // }
 
-        int queryType = 0;
+        ArrayList<Vector> stats;
+        Random rand = new Random();
         double[] times = new double[numTrials];
         for (int i = 0; i < numTrials; i++) {
             long start = System.currentTimeMillis();
-            int arm = optimizer.getArm(i + 1, stats);
+
+            int queryType = rand.nextInt(queries.size());
+            List<String> queryOrders = queries.get(queryType);
+
+            stats = new ArrayList<Vector>();
+            for (String query : queryOrders) {
+                List<String> tableOrder = parser.getTableOrder(query);
+                List<String> columnOrder = parser.getColumnOrder(query);
+                stats.add(this.getStats(tableOrder, columnOrder));
+            }
+
+            int arm = optimizer.getArm(i + 1, queryType, stats); 
             String chosenQuery = queryOrders.get(arm);
             Vector chosenContext = stats.get(arm);
-            this.select(chosenQuery, false);
+
+            String hashJoin = parser.toHashJoin(chosenQuery);
+            System.out.println(hashJoin);
+            this.select(hashJoin, false);
             long end = System.currentTimeMillis();
 
             if (i > 0) {
                 double elapsed = (double) (end - start);
                 optimizer.update(arm, queryType, -1 * elapsed, chosenContext);
-                times[i-1] = optimizer.normalizeReward(queryType, elapsed);
+                times[i-1] = optimizer.normalizeReward(elapsed, queryType);
             }
         }
     }
-
 
     public ArrayList<String> getTables() {
         ArrayList<String> tables = new ArrayList<String>();

@@ -61,7 +61,7 @@ public class Utils {
         }
     }
 
-    public static List<String> getFiles(String path) {
+    public static List<String> getFiles(String path, String extension) {
         File file = new File(path);
         List<String> result = new ArrayList<String>();
 
@@ -71,7 +71,7 @@ public class Utils {
 
         if (file.isDirectory()) {
             for (File f : file.listFiles()) {
-                if (f.getName().endsWith(".csv")) {
+                if (f.getName().endsWith(extension)) {
                     result.add(f.getPath());
                 }
             }

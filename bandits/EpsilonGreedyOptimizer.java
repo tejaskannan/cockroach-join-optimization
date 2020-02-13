@@ -27,13 +27,18 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
     @Override
     public void update(int arm, int type, double reward, Vector context) {
         this.epsilon = this.epsilon * ANNEAL_RATE;
-        reward = super.normalizeReward(type, reward);
-        super.addReward(arm, reward);
-        super.incrementCount(arm);
+        
+        if (super.shouldUpdate(type)) {
+            double normalizedReward = super.normalizeReward(reward, type);
+            super.addReward(arm, normalizedReward);
+            super.incrementCount(arm);
+        }
+
+        super.recordSample(reward, type);
     }
 
     @Override
-    public int getArm(int time, List<Vector> contexts) {
+    public int getArm(int time, int type, List<Vector> contexts) {
         if (Math.random() < this.epsilon) {
             return this.rand.nextInt(super.getNumArms());
         }

@@ -6,12 +6,14 @@ import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.schema.Table;
 
 
 public class SQLParser {
@@ -24,17 +26,91 @@ public class SQLParser {
         this.joins = new String[]{ "MERGE", "HASH" };
     }
 
+    public String toHashJoin(String sql) {
+        StringBuilder builder = new StringBuilder();
+        String[] tokens = sql.split(" ");
+
+        for (int i = 0; i < tokens.length; i++) {
+            builder.append(tokens[i]);
+            if ((i < tokens.length - 1) && tokens[i].equals("INNER") && tokens[i].equals("JOIN")) {
+                builder.append(" HASH ");
+            } else {
+                builder.append(" ");
+            }
+        }
+
+        return builder.toString();
+    }
+
+    public List<String> getTableOrder(String sql) {
+        try {
+            CCJSqlParserManager pm = new CCJSqlParserManager();
+            Statement statement = pm.parse(new StringReader(sql));
+            if (statement instanceof Select) {
+                Select selectStatement = (Select) statement;
+ 
+                // Get joined tables and columns
+                InnerJoinVisitor tablesNamesFinder = new InnerJoinVisitor();
+                List<Table> tableList = tablesNamesFinder.getTableList(selectStatement);
+                
+                List<String> tableNames = new ArrayList<String>();
+                for (Table t : tableList) {
+                    tableNames.add(t.getWholeTableName());
+                }
+                return tableNames;
+            }
+        } catch (JSQLParserException ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    public List<String> getColumnOrder(String sql) {
+        try {
+            CCJSqlParserManager pm = new CCJSqlParserManager();
+            Statement statement = pm.parse(new StringReader(sql));
+            if (statement instanceof Select) {
+                Select selectStatement = (Select) statement;
+ 
+                // Get joined tables and columns
+                InnerJoinVisitor tablesNamesFinder = new InnerJoinVisitor();
+                List<TableJoin> joinList = tablesNamesFinder.getJoinList(selectStatement);
+                List<Table> tableList = tablesNamesFinder.getTableList(selectStatement);
+
+                List<String> colNames = new ArrayList<String>();
+                for (Table table : tableList) {
+                    for (TableJoin join : joinList) {
+                        
+                        if (table.getAlias().equals(join.getLeft().getTable().getWholeTableName())) {
+                            colNames.add(join.getLeft().getColumnName());
+                            break;
+                        } else if (table.getAlias().equals(join.getRight().getTable().getWholeTableName())) {
+                            colNames.add(join.getRight().getColumnName());
+                            break;
+                        }
+                    }
+                }
+
+                return colNames;
+            }
+        } catch (JSQLParserException ex) {
+            ex.printStackTrace();
+        }
+        return null;
+
+    }
+
     public String whereToInnerJoin(String sql) {
         try {
             CCJSqlParserManager pm = new CCJSqlParserManager();
             Statement statement = pm.parse(new StringReader(sql));
             if (statement instanceof Select) {
                 Select selectStatement = (Select) statement;
+ 
+                // Get joined tables and columns
                 InnerJoinVisitor tablesNamesFinder = new InnerJoinVisitor();
-                List<String> tableList = tablesNamesFinder.getTableList(selectStatement);
-                for (String tableName : tableList) {
-                    System.out.println(tableName);
-                }
+                List<Table> tableList = tablesNamesFinder.getTableList(selectStatement);
+                List<TableJoin> joinList = tablesNamesFinder.getJoinList(selectStatement);
             }
         } catch (JSQLParserException ex) {
             ex.printStackTrace();

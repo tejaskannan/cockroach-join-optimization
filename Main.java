@@ -7,7 +7,6 @@ import utils.Utils;
 import database.SQLDatabase;
 import bandits.OptimizerFactory;
 import bandits.BanditOptimizer;
-import bandits.LinearThompsonSamplingOptimizer;
 import parsing.SQLParser;
 
 
@@ -39,8 +38,14 @@ public class Main {
                 } else {                
                     String dbName = tokens[1].trim();
                     String userName = Utils.strip(tokens[2]);
+
+                    boolean shouldCreateStats = false;
+                    if (tokens.length > 3) {
+                        shouldCreateStats = Boolean.parseBoolean(tokens[3]);
+                    }
+
                     db = new SQLDatabase("localhost", 26257, dbName, userName);
-                    db.refreshStats();
+                    db.refreshStats(shouldCreateStats);
                     System.out.println("Connected to database");
                 }
             } else if (cmd.equals("SELECT")) {
@@ -101,7 +106,7 @@ public class Main {
                         useHeaders = Boolean.parseBoolean(tokens[2]);
                     }
                     
-                    List<String> filePaths = Utils.getFiles(path);
+                    List<String> filePaths = Utils.getFiles(path, ".csv");
                     for (String filePath : filePaths) {
                         // We could replace this we Regex, but this command is not executed that often
                         String[] pathTokens = filePath.split("/");
@@ -117,28 +122,28 @@ public class Main {
             } else if (cmd.equals("RUN")) {
                 if (db == null) {
                     System.out.println("Not connected to a database.");
-                // } 
-                // else if (tokens.length < 4) {
-                //     System.out.println("Must provide an optimizer name, query file and number of trials.");
+                } 
+                else if (tokens.length < 4) {
+                     System.out.println("Must provide an optimizer name, number of trials, and query file.");
                 } else {
-                    List<String> queries = new ArrayList<String>() {{
-                        add("SELECT * FROM player AS p INNER HASH JOIN player_attributes AS pa ON p.player_api_id = pa.player_api_id");
-                        add("SELECT * FROM player_attributes AS pa INNER HASH JOIN player AS p ON pa.player_api_id = p.player_api_id");
-                    }};
 
-                    List<List<String>> tableOrders = new ArrayList<List<String>>() {{
-                        add(new ArrayList<String>() {{ add("player"); add("player_attributes"); }});
-                        add(new ArrayList<String>() {{ add("player_attributes"); add("player"); }});
-                    }};
+                    String optName = tokens[1].trim();
+                    int numTrials = Integer.parseInt(tokens[2].trim());
+                    
+                    List<String> filePaths = Utils.getFiles(tokens[3].trim(), ".sql");
+                    List<List<String>> queries = new ArrayList<List<String>>();
+                    for (String path : filePaths) {
+                        queries.add(Utils.readQueries(path));
+                    }
 
-                    List<List<String>> colOrders = new ArrayList<List<String>>() {{
-                        add(new ArrayList<String>() {{ add("player_api_id"); add("player_api_id"); }});
-                        add(new ArrayList<String>() {{ add("player_api_id"); add("player_api_id"); }});
-                    }};
+                    double[] optArgs = new double[tokens.length - 4];
+                    for (int i = 4; i < tokens.length; i++) {
+                        optArgs[i-4] = Double.parseDouble(Utils.strip(tokens[i]));
+                    }
 
-                    BanditOptimizer optimizer = new LinearThompsonSamplingOptimizer(queries.size(), 1, 4, 0.01, 10.0);
+                    BanditOptimizer optimizer = OptimizerFactory.banditFactory(optName, queries.get(0).size(), queries.size(), optArgs);
 
-                    db.runJoinQuery(queries, tableOrders, colOrders, optimizer, 10);
+                    db.runJoinQuery(queries, optimizer, numTrials);
  
                    // String optName = tokens[1];
                    // List<String> queries = Utils.readQueries(tokens[2]);
