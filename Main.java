@@ -58,7 +58,7 @@ public class Main {
                 } else if (tokens.length < 2) {
                     System.out.println("Must provide a schema text file.");
                 } else {
-                    String tablesPath = Utils.strip(tokens[1]);  // Path to 'txt' file containing CREATE TABLE commands.
+                    String tablesPath = Utils.strip(tokens[1]);  // Path to file containing CREATE TABLE commands.
                     int numCreated = db.createTables(tablesPath);
                     System.out.printf("Created %d tables.\n", numCreated);
                 }
@@ -70,8 +70,49 @@ public class Main {
                 } else {
                     String tableName = tokens[1].trim();
                     String csvPath = Utils.strip(tokens[2].trim());
-                    int wereInserted = db.importCsv(tableName, csvPath);
+
+                    boolean useHeaders = true;
+                    int numHeaders = -1;
+                    if (tokens.length > 3) {
+                        useHeaders = Boolean.parseBoolean(tokens[3]);
+                    }
+
+                    String[] dataTypes = null;
+                    if (tokens.length > 4) {
+                        dataTypes = new String[tokens.length - 4];
+                        for (int i = 4; i < tokens.length; i++) {
+                            dataTypes[i-4] = tokens[i];
+                        }
+                    }
+
+                    int wereInserted = db.importCsv(tableName, csvPath, useHeaders, dataTypes);
                     System.out.printf("Inserted %d records into %s\n", wereInserted, tableName);
+                }
+            } else if (cmd.equals("IMPORT-MANY")) {
+                if (db == null) {
+                    System.out.println("Not connected to a database.");
+                } else if (tokens.length < 2) {
+                    System.out.println("Must provide a CSV file.");
+                } else {
+                    String path = tokens[1].trim();
+                    
+                    boolean useHeaders = true;
+                    if (tokens.length > 2) {
+                        useHeaders = Boolean.parseBoolean(tokens[2]);
+                    }
+                    
+                    List<String> filePaths = Utils.getFiles(path);
+                    for (String filePath : filePaths) {
+                        // We could replace this we Regex, but this command is not executed that often
+                        String[] pathTokens = filePath.split("/");
+                        String fileName = pathTokens[pathTokens.length - 1];
+                        System.out.println(fileName);
+                        
+                        String tableName = fileName.split("\\.")[0];
+
+                        int wereInserted = db.importCsv(tableName, filePath, useHeaders, null);
+                        System.out.printf("Inserted %d records into %s\n", wereInserted, tableName);
+                    }
                 }
             } else if (cmd.equals("RUN")) {
                 if (db == null) {

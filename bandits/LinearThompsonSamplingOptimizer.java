@@ -3,6 +3,7 @@ package bandits;
 
 import java.lang.Math;
 import java.util.List;
+import java.util.Random;
 
 import org.apache.commons.math3.distribution.MultivariateNormalDistribution;
 import org.la4j.Matrix;
@@ -19,6 +20,8 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
     private int d;
     private Matrix B;
     private Vector unnormalizedMu;
+    private RewardDistribution[] rewardDistributions;
+    private Random rand;
 
     public LinearThompsonSamplingOptimizer(int numArms, int numTypes, int d, double delta, double r) {
         super(numArms, numTypes);
@@ -28,6 +31,13 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
         
         this.B = DenseMatrix.identity(d);
         this.unnormalizedMu = Vector.zero(d);
+
+        this.rewardDistributions = new RewardDistribution[numTypes];
+        for (int i = 0; i < numTypes; i++) {
+            this.rewardDistributions[i] = new RewardDistribution(0.1, 0.95, 5);
+        }
+        
+        this.rand = new Random();
     }
 
     private double getVariance(int time) {
@@ -40,13 +50,28 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
 
     @Override
     public void update(int arm, int type, double reward, Vector context) {
-        double normalizedReward = super.normalizeReward(type, reward);
-        this.unnormalizedMu = this.unnormalizedMu.add(context.multiply(normalizedReward));
-        this.B = this.B.add(context.outerProduct(context));
+        RewardDistribution rewardDistribution = this.rewardDistributions[type];
+        if (rewardDistribution.shouldUpdate()){
+            double normalizedReward = rewardDistribution.getReward(reward);
+            
+            System.out.printf("Raw Reward: %s\n", reward);
+            System.out.printf("Normalized Reward: %s\n", normalizedReward);
+            
+            this.unnormalizedMu = this.unnormalizedMu.add(context.multiply(normalizedReward));
+            this.B = this.B.add(context.outerProduct(context));
+        }
+        rewardDistribution.addSample(reward);
     }
 
     @Override
     public int getArm(int time, List<Vector> contexts) {
+        // For now, just assume type zero. We will need to make this a parameter.
+        int type = 0;
+        RewardDistribution rewardDistribution = this.rewardDistributions[type];
+        if (rewardDistribution.shouldActGreedy()) {
+            return this.rand.nextInt(this.getNumArms());
+        }
+
         // Copy mu and B into array form
         double var = this.getVariance(time);
         MatrixInverter inverter = new GaussJordanInverter(this.B);
@@ -59,7 +84,7 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
                 covMatrix[i][j] = cov.get(i, j);
             }
         }
-        
+
         Vector mu = this.getMu(BInv);
         double[] muArray = new double[mu.length()];
         for (int i = 0; i < mu.length(); i++) {

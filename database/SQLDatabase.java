@@ -244,43 +244,101 @@ public class SQLDatabase {
         return numCreated;
     }
 
-    public int importCsv(String tableName, String filePath) {
+    public int importCsv(String tableName, String filePath, boolean useHeaders, String[] dataTypes) {
         int insertCount = 0;
         String headers = null;
+
+        // Derive number of headers from given data types
+        int numHeaders = -1;
+        if (dataTypes != null && dataTypes.length > 0) {
+            numHeaders = dataTypes.length;
+        }
+
         try (Connection connection = this.ds.getConnection()) {
             // Read the file
             BufferedReader reader = new BufferedReader(new FileReader(filePath));
             
             // Obtain the data headers
-            headers = reader.readLine().trim();
-            int numHeaders = headers.split(",").length;
+            String insertQuery;
+            if (useHeaders) {
+                headers = reader.readLine().trim();
+                numHeaders = headers.split(",").length;
 
-            // Format query and records list
-            String insertQuery = "INSERT INTO %s (%s) VALUES %s;";
+                // Format query and records list
+                insertQuery = "INSERT INTO %s (%s) VALUES %s;";
+            } else {
+                insertQuery = "INSERT INTO %s VALUES %s;";
+            }
+            
             ArrayList<String> insertList = new ArrayList<String>();
 
             // Read data line-by-line
             String line = reader.readLine();
             while (line != null) {
                 String[] tokens = line.split(",");
-                String[] cleanedTokens = new String[tokens.length];
+
+                int length = tokens.length;
+                if (numHeaders != -1) {
+                    length = numHeaders;
+                }
+
+                String[] cleanedTokens = new String[length];
                 
                 // Convert to correct data types
-                for (int i = 0; i < tokens.length; i++) {
-                    try {
-                        Integer.parseInt(tokens[i]);
-                        cleanedTokens[i] = tokens[i];
-                    } catch (NumberFormatException ex1) {
+                for (int i = 0; i < tokens.length && i < cleanedTokens.length; i++) {
+                    if (dataTypes != null) {
+                        if (dataTypes[i].equals("int")) {
+                            try {
+                                Integer.parseInt(tokens[i]);
+                                cleanedTokens[i] = tokens[i];
+                            } catch (NumberFormatException ex) {
+                                cleanedTokens[i] = "0";
+                            }
+                        } else if (dataTypes[i].equals("float")) {
+                            try {
+                                Float.parseFloat(tokens[i]);
+                                cleanedTokens[i] = tokens[i];
+                            } catch (NumberFormatException ex) {
+                                cleanedTokens[i] = "0.0";
+                            }
+                        } else if (dataTypes[i].startsWith("string")) {
+                            String[] dataTypeTokens = dataTypes[i].split("\\(");
+                            String strLen = dataTypeTokens[1].substring(0, dataTypeTokens[1].length() - 1);
+
+                            int maxLen = Integer.parseInt(strLen);
+                            String t = tokens[i].replace("'", "''");
+                            
+                            if (t.length() > 0 && tokens[i].length() < maxLen) {
+                                cleanedTokens[i] = String.format("'%s'", tokens[i].replace("'", "''"));
+                            } else {
+                                cleanedTokens[i] = "''";
+                            }
+                        } else {
+                            cleanedTokens[i] = null;
+                        }
+                    } else {
                         try {
-                            Float.parseFloat(tokens[i]);
+                            Integer.parseInt(tokens[i]);
                             cleanedTokens[i] = tokens[i];
-                        } catch (NumberFormatException ex2) {
-                            cleanedTokens[i] = String.format("'%s'", tokens[i].replace("'", "''"));
+                        } catch (NumberFormatException ex1) {
+                            try {
+                                Float.parseFloat(tokens[i]);
+                                cleanedTokens[i] = tokens[i];
+                            } catch (NumberFormatException ex2) {
+                                cleanedTokens[i] = String.format("'%s'", tokens[i].replace("'", "''"));
+                            }
                         }
                     }
                 }
 
-                if (tokens.length == numHeaders) {
+                // Append nulls if needed
+                int k = tokens.length;
+                while (useHeaders && numHeaders > -1 && k < cleanedTokens.length) {
+                    cleanedTokens[k] = null;
+                    k += 1;
+                }
+
+                if ((!useHeaders && numHeaders == -1) || cleanedTokens.length == numHeaders) {
                     String values = String.join(",", cleanedTokens);
                     insertList.add("(" + values + ")"); 
                 }
@@ -288,7 +346,14 @@ public class SQLDatabase {
                 // Batch insert when size threshold reached
                 if (insertList.size() >= BATCH_SIZE) {
                     String records = String.join(", ", insertList);
-                    String sql = String.format(insertQuery, tableName, headers, records);
+
+                    String sql;
+                    if (useHeaders) {
+                        sql = String.format(insertQuery, tableName, headers, records);
+                    } else {
+                        sql = String.format(insertQuery, tableName, records);
+                    }
+
                     try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
                        insertCount += pstmt.executeUpdate();
                     } catch (SQLException ex) {
@@ -304,7 +369,14 @@ public class SQLDatabase {
             // Cleanup Insertions
             if (insertList.size() > 0) {
                 String records = String.join(", ", insertList);
-                String sql = String.format(insertQuery, tableName, headers, records);
+                
+                String sql;
+                if (useHeaders) {
+                    sql = String.format(insertQuery, tableName, headers, records);
+                } else {
+                    sql = String.format(insertQuery, tableName, records);
+                }
+                
                 try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
                    insertCount += pstmt.executeUpdate();
                 } catch (SQLException ex) {

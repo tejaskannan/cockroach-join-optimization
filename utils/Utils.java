@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.File;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -58,6 +59,27 @@ public class Utils {
         } catch (IOException ex) {
             System.out.printf("Caught IO Exception %s\n", ex.getMessage());
         }
+    }
+
+    public static List<String> getFiles(String path) {
+        File file = new File(path);
+        List<String> result = new ArrayList<String>();
+
+        if (!file.exists()) {
+            return result;
+        }
+
+        if (file.isDirectory()) {
+            for (File f : file.listFiles()) {
+                if (f.getName().endsWith(".csv")) {
+                    result.add(f.getPath());
+                }
+            }
+        } else {
+            result.add(path);
+        }
+
+        return result;
     }
 
 }
