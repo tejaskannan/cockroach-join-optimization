@@ -18,6 +18,7 @@ import java.util.Random;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.la4j.Vector;
 import utils.Utils;
+import utils.OutputStats;
 import parsing.SQLParser;
 import bandits.BanditOptimizer;
 
@@ -202,13 +203,13 @@ public class SQLDatabase {
     }
 
 
-    public double[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, double[] averageRuntimes) {
+    public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, double[] averageRuntimes) {
         SQLParser parser = new SQLParser();
 
         ArrayList<Vector> stats;
         Random rand = new Random();
-        double[] regrets = new double[numTrials];
-        for (int i = 0; i < numTrials; i++) {
+        OutputStats[] outputStats = new OutputStats[numTrials];
+        for (int i = 0; i <= numTrials; i++) {
             long start = System.currentTimeMillis();
 
             int queryType = rand.nextInt(queries.size());
@@ -229,14 +230,19 @@ public class SQLDatabase {
             this.select(hashJoin, false);
             long end = System.currentTimeMillis();
 
+            // Don't record first trial to avoid outliers from caching
             if (i > 0) {
                 double elapsed = (double) (end - start);
-                optimizer.update(arm, queryType, -1 * elapsed, chosenContext);
-                regrets[i] = regrets[i-1] + (elapsed - averageRuntimes[queryType]);
+                double reward = -1 * elapsed;
+                optimizer.update(arm, queryType, reward, chosenContext);
+               
+                double normalizedReward = optimizer.normalizeReward(reward, queryType);
+                double regret = elapsed - averageRuntimes[queryType];
+                outputStats[i-1] = new OutputStats(elapsed, normalizedReward, regret, arm, queryType);
             }
         }
 
-        return regrets;
+        return outputStats;
     }
 
     public ArrayList<String> getTables() {

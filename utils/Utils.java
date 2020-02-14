@@ -13,6 +13,7 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -21,6 +22,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import bandits.OptimizerFactory;
+import bandits.BanditOptimizer;
 
 public class Utils {
 
@@ -98,6 +101,49 @@ public class Utils {
         return result;
     }
 
+    public static List<BanditOptimizer> getOptimizers(String configPath, int numArms, int numTypes) {
+        /**
+         * Loads the bandit optimizers as specified by the configuration path.
+         *
+         * @param configPath: Path to configuration JSON file
+         * @return A list of bandit optimizers
+         */
+        JSONParser parser = new JSONParser();
+        List<BanditOptimizer> optimizers = new ArrayList<BanditOptimizer>();
+
+        try (FileReader reader = new FileReader(configPath)) {
+            
+            // Read file
+            Object rawObject = parser.parse(reader);
+
+            // Extract JSON array
+            JSONArray configArray = (JSONArray) rawObject;
+
+            // Load configuration
+            for (Object configObj : configArray) {
+                JSONObject config = (JSONObject) configObj;
+
+                String name = (String) config.get("name");
+                JSONArray args = (JSONArray) config.get("args");
+                
+                double[] argArray = new double[args.size()];
+                for (int i = 0; i < args.size(); i++) {
+                    argArray[i] = (double) args.get(i);
+                }
+
+                optimizers.add(OptimizerFactory.banditFactory(name, numArms, numTypes, argArray));
+            }
+        } catch (FileNotFoundException ex) {
+            ex.printStackTrace();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } catch (ParseException ex) {
+            ex.printStackTrace();
+        }
+    
+        return optimizers;
+    }
+
 
     public static double readProfilingFromJson(String path) {
         /**
@@ -136,6 +182,34 @@ public class Utils {
         return bestAverage;
     }
 
+    public static void saveRegretsAsJson(Map<String, OutputStats[]> regretMap, String outputFile) {
+        /**
+         * Save the map of regret values as a JSON
+         *
+         * @param regretMap: Map from optimizer name to output statistics
+         * @param outputFile: Path to output file
+         */
+        JSONArray result = new JSONArray();
+
+        for (String optName : regretMap.keySet()) {
+            JSONObject optResult = new JSONObject();
+
+            // Copy regrets into JSON Array
+            JSONArray stats = new JSONArray();
+            OutputStats[] statsArray = regretMap.get(optName);
+            for (int i = 0; i < statsArray.length; i++) {
+                stats.add(statsArray[i].toJsonObject());
+            }
+
+            optResult.put("optimizer_name", optName);
+            optResult.put("stats", stats);
+
+            result.add(optResult);
+        }
+
+        writeAsJson(result, outputFile);
+    }
+
 
     public static void saveResultsAsJson(Map<String, List<Double>> resultsMap, String outputFile) {
         /**
@@ -154,13 +228,7 @@ public class Utils {
             result.add(queryObject);
         }
 
-        // Write to file
-        try (FileWriter file = new FileWriter(outputFile)) {
-            file.write(result.toJSONString());
-            file.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        writeAsJson(result, outputFile);
     }
 
     public static double average(Iterable<Double> iter) {
@@ -176,6 +244,18 @@ public class Utils {
         }
 
         return sum / count;
+    }
+
+    private static void writeAsJson(JSONArray array, String path) {
+        /**
+         * Write the given JSON Array to the output path
+         */
+        try (FileWriter file = new FileWriter(path)) {
+            file.write(array.toJSONString());
+            file.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private static <T> JSONArray listToJsonArray(List<T> lst) {

@@ -13,18 +13,24 @@ public abstract class BanditOptimizer {
     private double[] typeMax;
     private int numTypes;
     private RewardDistribution[] rewardDistributions;
+    private String name;
 
-    public BanditOptimizer(int numArms, int numTypes) {
+    public BanditOptimizer(int numArms, int numTypes, String name) {
         this.rewards = new double[numArms];
         this.counts = new int[numArms];
         this.numArms = numArms;
         this.numTypes = numTypes;
         this.typeMax = new double[numTypes];
+        this.name = name;
 
         this.rewardDistributions = new RewardDistribution[numTypes];
         for (int i = 0; i < numTypes; i++) {
             this.rewardDistributions[i] = new RewardDistribution(0.1, 0.9, 5);
         }
+    }
+
+    public String getName() {
+        return this.name;
     }
 
     public boolean shouldUpdate(int type) {
@@ -41,16 +47,6 @@ public abstract class BanditOptimizer {
 
     public double normalizeReward(double reward, int type) {
         return this.rewardDistributions[type].getReward(reward);
-        //double absReward = Math.abs(reward);
-        //if (absReward > typeMax[type]) {
-        //    typeMax[type] = absReward;
-        //}
-
-        //if (typeMax[type] < 1e-7) {
-        //    return 0.0;
-        //}
-        //double normalized = reward / typeMax[type];
-        //return normalized;
     }
 
     public int getNumArms() {

@@ -11,7 +11,7 @@ public class UCBOptimizer extends BanditOptimizer {
     private Random rand;
 
     public UCBOptimizer(int numArms, int numTypes) {
-        super(numArms, numTypes);
+        super(numArms, numTypes, "UCB");
         this.rand = new Random();
     }
 

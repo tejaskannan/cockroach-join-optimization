@@ -10,7 +10,7 @@ public class RandomOptimizer extends BanditOptimizer {
     private Random rand;
 
     public RandomOptimizer(int numArms, int numTypes) {
-        super(numArms, numTypes);
+        super(numArms, numTypes, "Random");
         this.rand = new Random();
     }
 

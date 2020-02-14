@@ -2,8 +2,10 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.Random;
+import java.util.HashMap;
 
 import utils.Utils;
+import utils.OutputStats;
 import database.SQLDatabase;
 import bandits.OptimizerFactory;
 import bandits.BanditOptimizer;
@@ -110,11 +112,7 @@ public class Main {
                     
                     List<String> filePaths = Utils.getFiles(path, ".csv");
                     for (String filePath : filePaths) {
-                        // We could replace this we Regex, but this command is not executed that often
-                        String[] pathTokens = filePath.split("/");
-                        String fileName = pathTokens[pathTokens.length - 1];
-                        System.out.println(fileName);
-                        
+                        String fileName = Utils.getFileName(filePath);
                         String tableName = fileName.split("\\.")[0];
 
                         int wereInserted = db.importCsv(tableName, filePath, useHeaders, null);
@@ -125,15 +123,17 @@ public class Main {
                 if (db == null) {
                     System.out.println("Not connected to a database.");
                 } 
-                else if (tokens.length < 5) {
-                     System.out.println("Must provide an optimizer name, number of trials, query file, and profile folder.");
+                else if (tokens.length < 6) {
+                     System.out.println("Must provide an optimizer file, number of trials, query folder, profile folder, and output file.");
                 } else {
 
-                    String optName = tokens[1].trim();
+                    String optConfig = tokens[1].trim();
                     int numTrials = Integer.parseInt(tokens[2].trim());
+                    String queryPath = tokens[3].trim();
                     String profileFolder = tokens[4].trim();
+                    String outputFile = Utils.strip(tokens[5]);
                     
-                    List<String> filePaths = Utils.getFiles(tokens[3].trim(), ".sql");
+                    List<String> filePaths = Utils.getFiles(queryPath, ".sql");
                     List<List<String>> queries = new ArrayList<List<String>>();
                     double[] averageRuntimes = new double[filePaths.size()];
 
@@ -144,19 +144,21 @@ public class Main {
                         String fileName = Utils.getFileName(path);
                         String profilePath = String.format("%s/%s", profileFolder, fileName.replace(".sql", ".json")); 
                         averageRuntimes[index] = Utils.readProfilingFromJson(profilePath);
-                        System.out.println(averageRuntimes[index]);
 
                         index += 1;
                     }
 
-                    double[] optArgs = new double[tokens.length - 5];
-                    for (int i = 5; i < tokens.length; i++) {
-                        optArgs[i - 5] = Double.parseDouble(Utils.strip(tokens[i]));
+                    int numArms = queries.get(0).size();
+                    int numTypes = queries.size();
+                    List<BanditOptimizer> optimizers = Utils.getOptimizers(optConfig, numArms, numTypes);
+
+                    HashMap<String, OutputStats[]> results = new HashMap<String, OutputStats[]>();
+                    for (BanditOptimizer optimizer : optimizers) {
+                        OutputStats[] outputStats = db.runJoinQuery(queries, optimizer, numTrials, averageRuntimes);
+                        results.put(optimizer.getName(), outputStats);
                     }
 
-                    BanditOptimizer optimizer = OptimizerFactory.banditFactory(optName, queries.get(0).size(), queries.size(), optArgs);
-
-                    db.runJoinQuery(queries, optimizer, numTrials, averageRuntimes);
+                    Utils.saveRegretsAsJson(results, outputFile);
                 }
             } else if (cmd.equals("PARSE")) {
                 if (tokens.length < 2) {
