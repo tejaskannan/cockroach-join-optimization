@@ -210,6 +210,8 @@ public class SQLDatabase {
         Random rand = new Random();
         OutputStats[] outputStats = new OutputStats[numTrials];
         for (int i = 0; i <= numTrials; i++) {
+
+            // Start time to include all required preprocessing
             long start = System.currentTimeMillis();
 
             int queryType = rand.nextInt(queries.size());
@@ -226,8 +228,13 @@ public class SQLDatabase {
             String chosenQuery = queryOrders.get(arm);
             Vector chosenContext = stats.get(arm);
 
+            // Turn query into a Hash Join to prevent later reordering
             String hashJoin = parser.toHashJoin(chosenQuery);
+
+            // Execute query
             this.select(hashJoin, false);
+
+            // Record ending time once query is complete
             long end = System.currentTimeMillis();
 
             // Don't record first trial to avoid outliers from caching

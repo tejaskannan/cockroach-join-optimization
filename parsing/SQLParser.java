@@ -31,8 +31,9 @@ public class SQLParser {
         String[] tokens = sql.split(" ");
 
         for (int i = 0; i < tokens.length; i++) {
+
             builder.append(tokens[i]);
-            if ((i < tokens.length - 1) && tokens[i].equals("INNER") && tokens[i].equals("JOIN")) {
+            if ((i < tokens.length - 1) && tokens[i].equals("INNER") && tokens[i+1].equals("JOIN")) {
                 builder.append(" HASH ");
             } else {
                 builder.append(" ");
