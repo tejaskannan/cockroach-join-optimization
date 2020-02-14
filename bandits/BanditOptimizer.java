@@ -23,9 +23,15 @@ public abstract class BanditOptimizer {
         this.typeMax = new double[numTypes];
         this.name = name;
 
+        // TODO: Make these parameters
+        double rewardEpsilon = 0.75;
+        double rewardAnneal = 0.6;
+        int updateThreshold = 5;
+
+        // Initialize reward distributions
         this.rewardDistributions = new RewardDistribution[numTypes];
         for (int i = 0; i < numTypes; i++) {
-            this.rewardDistributions[i] = new RewardDistribution(0.1, 0.9, 5);
+            this.rewardDistributions[i] = new RewardDistribution(rewardEpsilon, rewardAnneal, updateThreshold);
         }
     }
 

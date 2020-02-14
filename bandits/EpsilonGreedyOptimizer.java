@@ -39,7 +39,7 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
 
     @Override
     public int getArm(int time, int type, List<Vector> contexts) {
-        if (Math.random() < this.epsilon) {
+        if (Math.random() < this.epsilon || super.shouldActGreedy(type)) {
             return this.rand.nextInt(super.getNumArms());
         }
      
