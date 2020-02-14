@@ -123,87 +123,70 @@ public class Main {
                 if (db == null) {
                     System.out.println("Not connected to a database.");
                 } 
-                else if (tokens.length < 4) {
-                     System.out.println("Must provide an optimizer name, number of trials, and query file.");
+                else if (tokens.length < 5) {
+                     System.out.println("Must provide an optimizer name, number of trials, query file, and profile folder.");
                 } else {
 
                     String optName = tokens[1].trim();
                     int numTrials = Integer.parseInt(tokens[2].trim());
+                    String profileFolder = tokens[4].trim();
                     
                     List<String> filePaths = Utils.getFiles(tokens[3].trim(), ".sql");
                     List<List<String>> queries = new ArrayList<List<String>>();
+                    double[] averageRuntimes = new double[filePaths.size()];
+
+                    int index = 0;
                     for (String path : filePaths) {
                         queries.add(Utils.readQueries(path));
+
+                        String fileName = Utils.getFileName(path);
+                        String profilePath = String.format("%s/%s", profileFolder, fileName.replace(".sql", ".json")); 
+                        averageRuntimes[index] = Utils.readProfilingFromJson(profilePath);
+                        System.out.println(averageRuntimes[index]);
+
+                        index += 1;
                     }
 
-                    double[] optArgs = new double[tokens.length - 4];
-                    for (int i = 4; i < tokens.length; i++) {
-                        optArgs[i-4] = Double.parseDouble(Utils.strip(tokens[i]));
+                    double[] optArgs = new double[tokens.length - 5];
+                    for (int i = 5; i < tokens.length; i++) {
+                        optArgs[i - 5] = Double.parseDouble(Utils.strip(tokens[i]));
                     }
 
                     BanditOptimizer optimizer = OptimizerFactory.banditFactory(optName, queries.get(0).size(), queries.size(), optArgs);
 
-                    db.runJoinQuery(queries, optimizer, numTrials);
- 
-                   // String optName = tokens[1];
-                   // List<String> queries = Utils.readQueries(tokens[2]);
-                   // int numTrials = Integer.parseInt(Utils.strip(tokens[3]));
-
-                   // double[] optArgs = new double[tokens.length - 4];
-                   // for (int i = 4; i < tokens.length; i++) {
-                   //     optArgs[i-4] = Double.parseDouble(Utils.strip(tokens[i]));
-                   // }
-
-                   // double[] times = runOptimizer(db, optName, queries, numTrials, optArgs);
-                   // Utils.writeResults(optName + "_results.txt", times);
+                    db.runJoinQuery(queries, optimizer, numTrials, averageRuntimes);
                 }
             } else if (cmd.equals("PARSE")) {
-                List<String> queries = Utils.readQueries(tokens[1]);
-                SQLParser parser = new SQLParser();
-                parser.whereToInnerJoin(queries.get(0));
-            }
-            else {
+                if (tokens.length < 2) {
+                    System.out.println("Must provide a file to parse");
+                } else {
+                    List<String> queries = Utils.readQueries(tokens[1]);
+                    SQLParser parser = new SQLParser();
+                    parser.whereToInnerJoin(queries.get(0));
+                }
+            } else if (cmd.equals("PROFILE")) {
+                if (tokens.length < 4) {
+                    System.out.println("Must provide a folder/file, number of trials and output folder.");
+                } else {
+                    String path = tokens[1].trim();
+                    int numTrials = Integer.parseInt(tokens[2]);
+                    String outputFolder = Utils.strip(tokens[3]);
+
+                    List<String> queryPaths = Utils.getFiles(path, ".sql");
+                    for (String queryPath : queryPaths) {
+                        // TODO: Replace this path construction to be platform-independent
+                        String[] queryFileTokens = queryPath.split("/");
+                        String queryFileName = queryFileTokens[queryFileTokens.length - 1];
+                        String outputPath = String.format("%s/%s", outputFolder, queryFileName.replace(".sql", ".json"));
+                        System.out.println(outputPath);
+
+                        List<String> queries = Utils.readQueries(queryPath);
+                        db.profileQueries(queries, numTrials, outputPath);
+                    }
+                }
+            } else {
                 System.out.printf("Unknown command %s\n", tokens[0]);
             }
         }
     }
-
-//    private static double[] runOptimizer(SQLDatabase db, String optimizerName, List<String> queries, int trials, double... args) {
-//        SQLParser parser = new SQLParser();
-//        
-//        List<List<String>> joinQueries = new ArrayList<List<String>>();
-//        for (String query : queries) {
-//            String innerJoinQuery = parser.whereToInnerJoin(query);
-//            List<String> joinOptions = parser.getJoinOptions(innerJoinQuery);
-//            joinQueries.add(joinOptions);
-//        }
-//
-//        // For now, we assume that all queries have the same number of joins
-//        int numArms = joinQueries.get(0).size();
-//        int numTypes = joinQueries.size();
-//        BanditOptimizer opt = OptimizerFactory.banditFactory(optimizerName, numArms, numTypes, args);
-//
-//        double[] times = new double[trials];
-//        Random rand = new Random();
-//        for (int i = 0; i <= trials; i++) {
-//            int queryType =  rand.nextInt(joinQueries.size());
-//            List<String> options = joinQueries.get(queryType);
-//            
-//            long start = System.currentTimeMillis();
-//            int arm = opt.getArm(i);
-//            String chosenQuery = options.get(arm);
-//            db.select(chosenQuery, false);
-//            long end = System.currentTimeMillis();
-//
-//            if (i > 0) {
-//                double elapsed = (double) (end - start);
-//                opt.update(arm, queryType, -1 * elapsed);
-//                times[i-1] = opt.normalizeReward(queryType, elapsed);
-//            }
-//        }
-//
-//        return times;
-//    }
-
 }
-

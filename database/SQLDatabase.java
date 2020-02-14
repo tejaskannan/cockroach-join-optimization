@@ -130,35 +130,60 @@ public class SQLDatabase {
         return Vector.fromArray(statsList);
     }
 
-    public void runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials) {
-        // 1) Extract tables
+    public void profileQueries(List<String> queries, int numTrials, String outputPath) {
+        /**
+         * Profile given queries by measuring query execution latency.
+         *
+         * @param queries: Queries to execute
+         * @param numTrials: Number of trials to execute
+         * @param outputPath: Output JSON path (results are saved directly into this file)
+         */
+
+        // Initialize the results map (query -> list of latency measurements)   
+        HashMap<String, List<Double>> results = new HashMap<String, List<Double>>();
+        for (String query : queries) {
+            results.put(query, new ArrayList<Double>());
+        }
+
         SQLParser parser = new SQLParser();
 
+        try (Connection connection = ds.getConnection()) {
 
-        // 2) Lookup statistics in dictionary
-       // ArrayList<Vector> stats = new ArrayList<Vector>();
-       // for (int i = 0; i < tableOrders.size(); i++) {
-       //     List<String> tableOrder = tableOrders.get(i);
-       //     List<String> colOrder = columnOrders.get(i);
-       //     
-       //     double[] statsList = new double[tableOrder.size() * 2];;
-       //     for (int j = 0; j < tableOrder.size(); j++) {
-       //         String table = tableOrder.get(j);
-       //         String column = colOrder.get(j);
+            for (int i = 0; i <= numTrials; i++) {
+                for (String query : queries) {
+                    
+                    // Convert to hash joins to control query ordering
+                    String hashJoin = parser.toHashJoin(query);
 
-       //         Statistics colStats = this.tableStats.get(table).get(String.format("{%s}", column));
-       //         double[] features = colStats.getFeatures();
-       //         statsList[2 * j] = features[0];
-       //         statsList[2 * j + 1] = features[1];
-       //     }
+                    try (PreparedStatement pstmt = connection.prepareStatement(hashJoin)) {
+                        long start = System.currentTimeMillis();
+                        pstmt.execute();
+                        long end = System.currentTimeMillis();
 
-       //     Vector statsVector = Vector.fromArray(statsList);
-       //     stats.add(statsVector);
-       // }
+                        // Omit first round due to variance in caching
+                        if (i > 0) {
+                            results.get(query).add((double) (end - start));
+                        }
+                    
+                    } catch (SQLException ex) {
+                        Utils.printSQLException(ex);
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        }
+
+        Utils.saveResultsAsJson(results, outputPath);
+    }
+
+
+    public double[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, double[] averageRuntimes) {
+        SQLParser parser = new SQLParser();
 
         ArrayList<Vector> stats;
         Random rand = new Random();
-        double[] times = new double[numTrials];
+        double[] regrets = new double[numTrials];
         for (int i = 0; i < numTrials; i++) {
             long start = System.currentTimeMillis();
 
@@ -177,16 +202,17 @@ public class SQLDatabase {
             Vector chosenContext = stats.get(arm);
 
             String hashJoin = parser.toHashJoin(chosenQuery);
-            System.out.println(hashJoin);
             this.select(hashJoin, false);
             long end = System.currentTimeMillis();
 
             if (i > 0) {
                 double elapsed = (double) (end - start);
                 optimizer.update(arm, queryType, -1 * elapsed, chosenContext);
-                times[i-1] = optimizer.normalizeReward(elapsed, queryType);
+                regrets[i] = regrets[i-1] + (elapsed - averageRuntimes[queryType]);
             }
         }
+
+        return regrets;
     }
 
     public ArrayList<String> getTables() {
