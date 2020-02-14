@@ -31,6 +31,7 @@ public class SQLDatabase {
     private String dbName;
     private String userName;
     private HashMap<String, HashMap<String, Statistics>> tableStats;
+    private Connection connection;
 
     private static final int BATCH_SIZE = 1000;
 
@@ -51,6 +52,7 @@ public class SQLDatabase {
         this.ds = ds;
  
         this.tableStats = new HashMap<String, HashMap<String, Statistics>>();
+        this.connection = null;
     }
 
     public void refreshStats(boolean shouldCreate) {
@@ -69,46 +71,73 @@ public class SQLDatabase {
         this.debug = d;
     }
 
-    public HashMap<String, Statistics> getColumnStats(String tableName) {
-    
-        HashMap<String, Statistics> result = new HashMap<String, Statistics>();
-        String query = "SHOW STATISTICS FOR TABLE " + tableName + ";";  // Use prepared statement to avoid SQL Injection attacks
-        
-        try (Connection connection = ds.getConnection()) {
-            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-                boolean rv = pstmt.execute();
-
-                if (rv) {
-                    ResultSet rs = pstmt.getResultSet();
-                    ResultSetMetaData meta = rs.getMetaData();
-                    int numColumns = meta.getColumnCount();
-
-                    while (rs.next()) {
-                        String colName = rs.getString("column_names");
-                        Statistics stats = new Statistics(tableName, colName,
-                                                          rs.getInt("row_count"), rs.getInt("distinct_count"));
-                        result.put(colName, stats);
-                    }
-                }
-            } catch (SQLException ex) {
-                 Utils.printSQLException(ex);
-            }
+    public void open() {
+        /**
+         * Open the database connection
+         */
+        try {
+            this.connection = this.ds.getConnection();
         } catch (SQLException ex) {
             Utils.printSQLException(ex);
+        }
+    }
+
+    public void close() {
+        /**
+         * Close the database connection
+         */
+        try {
+            this.connection.close();
+            this.connection = null;
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        }
+    }
+
+    public HashMap<String, Statistics> getColumnStats(String tableName) {
+        /**
+         * Fetch statistics for all columns in the given table.
+         *
+         * @param tableName: Name of table to fetch stats for
+         * @return Map from column name to set of statistics
+         */
+        HashMap<String, Statistics> result = new HashMap<String, Statistics>();
+
+        // We should use a prepared statement to avoid injection, but for some reason Cockroach complains about them
+        String query = String.format("SHOW STATISTICS FOR TABLE %s;", tableName);
+        
+        try (PreparedStatement pstmt = this.connection.prepareStatement(query)) {
+            // Execute query
+            ResultSet rs = pstmt.executeQuery();
+
+            // Get information about results
+            ResultSetMetaData meta = rs.getMetaData();
+            int numColumns = meta.getColumnCount();
+
+            // Fetch all statistics
+            while (rs.next()) {
+                String colName = rs.getString("column_names");
+                int rowCount = rs.getInt("row_count");
+                int distinctCount = rs.getInt("distinct_count");
+                
+                Statistics stats = new Statistics(tableName, colName, rowCount, distinctCount);
+                result.put(colName, stats);
+            }
+        } catch (SQLException ex) {
+             Utils.printSQLException(ex);
         }
 
         return result;
     }
 
     public void createStats(String table) {
-        String query = String.format("CREATE STATISTICS %s FROM %s;", table, table);  // Use prepared statement to avoid injection attacks
+        /**
+         * Create statistics for the given table
+         */
+        String query = String.format("CREATE STATISTICS %s FROM %s;", table, table);
 
-        try (Connection connection = ds.getConnection()) {
-            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-                pstmt.execute();
-            } catch (SQLException ex) {
-                Utils.printSQLException(ex);
-            }
+        try (PreparedStatement pstmt = this.connection.prepareStatement(query)) {
+            pstmt.executeQuery();
         } catch (SQLException ex) {
             Utils.printSQLException(ex);
         }
@@ -147,31 +176,26 @@ public class SQLDatabase {
 
         SQLParser parser = new SQLParser();
 
-        try (Connection connection = ds.getConnection()) {
+        for (int i = 0; i <= numTrials; i++) {
+            for (String query : queries) {
+                
+                // Convert to hash joins to control query ordering
+                String hashJoin = parser.toHashJoin(query);
 
-            for (int i = 0; i <= numTrials; i++) {
-                for (String query : queries) {
-                    
-                    // Convert to hash joins to control query ordering
-                    String hashJoin = parser.toHashJoin(query);
+                try (PreparedStatement pstmt = this.connection.prepareStatement(hashJoin)) {
+                    long start = System.currentTimeMillis();
+                    pstmt.executeQuery();
+                    long end = System.currentTimeMillis();
 
-                    try (PreparedStatement pstmt = connection.prepareStatement(hashJoin)) {
-                        long start = System.currentTimeMillis();
-                        pstmt.execute();
-                        long end = System.currentTimeMillis();
-
-                        // Omit first round due to variance in caching
-                        if (i > 0) {
-                            results.get(query).add((double) (end - start));
-                        }
-                    
-                    } catch (SQLException ex) {
-                        Utils.printSQLException(ex);
+                    // Omit first round due to variance in caching
+                    if (i > 0) {
+                        results.get(query).add((double) (end - start));
                     }
+                
+                } catch (SQLException ex) {
+                    Utils.printSQLException(ex);
                 }
             }
-        } catch (SQLException ex) {
-            Utils.printSQLException(ex);
         }
 
         Utils.saveResultsAsJson(results, outputPath);
@@ -218,73 +242,64 @@ public class SQLDatabase {
     public ArrayList<String> getTables() {
         ArrayList<String> tables = new ArrayList<String>();
 
-        try (Connection connection = ds.getConnection()) {
-            try (PreparedStatement pstmt = connection.prepareStatement("SHOW TABLES")) {
-                boolean rv = pstmt.execute();
+        try (PreparedStatement pstmt = this.connection.prepareStatement("SHOW TABLES")) {
+            ResultSet rs = pstmt.executeQuery();
 
-                if (rv) {
-                    ResultSet rs = pstmt.getResultSet();
-                    ResultSetMetaData meta = rs.getMetaData();
-                    int numColumns = meta.getColumnCount();
+            ResultSetMetaData meta = rs.getMetaData();
+            int numColumns = meta.getColumnCount();
 
-                    while (rs.next()) {
-                        String tableName = rs.getString("table_name");
-                        tables.add(tableName);
-                    }
-                }
-            } catch (SQLException ex) {
-                Utils.printSQLException(ex);
+            while (rs.next()) {
+                String tableName = rs.getString("table_name");
+                tables.add(tableName);
             }
         } catch (SQLException ex) {
-            Utils.printSQLException(ex); 
+            Utils.printSQLException(ex);
         }
+
         return tables;
     }
 
     public boolean select(String sql, boolean shouldPrint, String... args) {
         boolean returnVal = false;
-        try (Connection connection = ds.getConnection()) {
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
- 
-                // Load arguments into the SQL Statement
-                for (int i = 0; i < args.length; i++) {
-                    try {
-                        int val = Integer.parseInt(args[i]);
-                        pstmt.setInt(i + 1, val);
-                    } catch (NumberFormatException e) {
-                        pstmt.setString(i + 1, args[i]);
-                    }
+        try (PreparedStatement pstmt = this.connection.prepareStatement(sql)) {
+
+            // Load arguments into the SQL Statement
+            for (int i = 0; i < args.length; i++) {
+                try {
+                    int val = Integer.parseInt(args[i]);
+                    pstmt.setInt(i + 1, val);
+                } catch (NumberFormatException e) {
+                    pstmt.setString(i + 1, args[i]);
                 }
-            
-                returnVal = pstmt.execute();
+            }
+        
+            returnVal = pstmt.execute();
 
-                if (returnVal && shouldPrint) {
-                    ResultSet rs = pstmt.getResultSet();
-                    ResultSetMetaData meta = rs.getMetaData();
-                    int numColumns = meta.getColumnCount();
+            if (returnVal && shouldPrint) {
+                ResultSet rs = pstmt.getResultSet();
+                ResultSetMetaData meta = rs.getMetaData();
+                int numColumns = meta.getColumnCount();
 
-                    // Iterate through the result set
-                    while (rs.next()) {
-                        for (int i = 1; i <= numColumns; i++) {
-                            String name = meta.getColumnName(i);
-                            String type = meta.getColumnTypeName(i);
+                // Iterate through the result set
+                while (rs.next()) {
+                    for (int i = 1; i <= numColumns; i++) {
+                        String name = meta.getColumnName(i);
+                        String type = meta.getColumnTypeName(i);
 
-                            if (type.equals("int8")) {
-                                int val = rs.getInt(name);
-                                System.out.printf("    %-8s -> %10s\n", name, val);
-                            } else {
-                                String str = rs.getString(name);
-                                System.out.printf("    %-8s -> %10s\n", name, str);
-                            }
+                        if (type.equals("int8")) {
+                            int val = rs.getInt(name);
+                            System.out.printf("    %-8s -> %10s\n", name, val);
+                        } else {
+                            String str = rs.getString(name);
+                            System.out.printf("    %-8s -> %10s\n", name, str);
                         }
                     }
-                }    
-            } catch (SQLException ex) {
-                Utils.printSQLException(ex);
-            }
+                }
+            }    
         } catch (SQLException ex) {
             Utils.printSQLException(ex);
         }
+
         return returnVal;
     }
 
@@ -292,7 +307,7 @@ public class SQLDatabase {
         int numCreated = 0;
         BufferedReader reader;
 
-        try (Connection connection = this.ds.getConnection()) {
+        try {
             reader = new BufferedReader(new FileReader(path));
             String line = reader.readLine();
             StringBuilder cmd = new StringBuilder();
@@ -303,17 +318,16 @@ public class SQLDatabase {
                 cmd.append(line);
                 if (line.endsWith(";")) {
                     String createTableCmd = cmd.toString();
-                    boolean isSuccess = execute(createTableCmd, connection);
+                    boolean isSuccess = execute(createTableCmd);
                     numCreated += isSuccess ? 1 : 0;
                     cmd = new StringBuilder();  // Clear the buffer
                     connection.commit();
                 }
                 line = reader.readLine();
             }
-        } catch (SQLException ex) {
+        } catch (SQLException ex) { 
             Utils.printSQLException(ex);
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
             System.out.printf("Caught IO Exception: %s\n", ex.getMessage());
         }
         return numCreated;
@@ -470,8 +484,8 @@ public class SQLDatabase {
     }
 
 
-    private boolean execute(String sql, Connection connection) {
-        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+    private boolean execute(String sql) {
+        try (PreparedStatement pstmt = this.connection.prepareStatement(sql)) {
             pstmt.execute();
             return true;
         } catch (SQLException ex) {

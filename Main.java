@@ -45,6 +45,7 @@ public class Main {
                     }
 
                     db = new SQLDatabase("localhost", 26257, dbName, userName);
+                    db.open();
                     db.refreshStats(shouldCreateStats);
                     System.out.println("Connected to database");
                 }
@@ -55,6 +56,7 @@ public class Main {
                     db.select(line, true);
                 }
             } else if (cmd.equals("DISCONNECT")) {
+                db.close();
                 db = null;
                 System.out.println("Disconnected from database");
             } else if (cmd.equals("CREATE-TABLES")) {
