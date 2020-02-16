@@ -18,6 +18,11 @@ public class OptimizerFactory {
             double r = args[1];
             double delta = args[2];
             return new LinearThompsonSamplingOptimizer(numArms, numTypes, d, r, delta);
+        } else if (name.equals("exp4")) {
+            int numExperts = (int) args[0];
+            double nu = args[1];
+            double gamma = args[2];
+            return new EXP4Optimizer(numArms, numTypes, numExperts, nu, gamma);
         }
         System.out.printf("No optimizer with name %s\n", name);
         return null;

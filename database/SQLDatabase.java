@@ -57,9 +57,15 @@ public class SQLDatabase {
     }
 
     public void refreshStats(boolean shouldCreate) {
+        /**
+         * Fetches database statistics
+         *
+         * @param shouldCreate: Whether we should create statistics relations (can be expensive)
+         */
         // TODO: Do this in a synchronous manner to support refreshing in another thread
         ArrayList<String> tables = this.getTables();
 
+        // Fetch statistics for all columns
         for (String table : tables) {
             if (shouldCreate) {
                 this.createStats(table);
@@ -145,19 +151,18 @@ public class SQLDatabase {
     }
 
     private Vector getStats(List<String> tableOrder, List<String> colOrder) {
-        double[] statsList = new double[tableOrder.size() * 2];
-         
+        ArrayList<Statistics> statsList = new ArrayList<Statistics>();
+
+        // TODO: Fix issue where the is 1 more column than table (right now, the last column is ignored)
         for (int j = 0; j < tableOrder.size(); j++) {
             String table = tableOrder.get(j);
             String column = colOrder.get(j);
-           
+            
             Statistics colStats = this.tableStats.get(table).get(String.format("{%s}", column));
-            double[] features = colStats.getFeatures();
-            statsList[2 * j] = features[0];
-            statsList[2 * j + 1] = features[1];
+            statsList.add(colStats);
         }
 
-        return Vector.fromArray(statsList);
+        return Statistics.combineStatistics(statsList);
     }
 
     public void profileQueries(List<String> queries, int numTrials, String outputPath) {
@@ -224,9 +229,9 @@ public class SQLDatabase {
                 stats.add(this.getStats(tableOrder, columnOrder));
             }
 
+            // Select query using the context for each statistics ordering
             int arm = optimizer.getArm(i + 1, queryType, stats); 
             String chosenQuery = queryOrders.get(arm);
-            Vector chosenContext = stats.get(arm);
 
             // Turn query into a Hash Join to prevent later reordering
             String hashJoin = parser.toHashJoin(chosenQuery);
@@ -241,7 +246,7 @@ public class SQLDatabase {
             if (i > 0) {
                 double elapsed = (double) (end - start);
                 double reward = -1 * elapsed;
-                optimizer.update(arm, queryType, reward, chosenContext);
+                optimizer.update(arm, queryType, reward, stats);
                
                 double normalizedReward = optimizer.normalizeReward(reward, queryType);
                 double regret = elapsed - averageRuntimes[queryType];

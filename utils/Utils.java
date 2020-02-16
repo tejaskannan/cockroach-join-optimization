@@ -16,11 +16,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Random;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.la4j.Vector;
 
 import bandits.OptimizerFactory;
 import bandits.BanditOptimizer;
@@ -244,6 +246,41 @@ public class Utils {
         }
 
         return sum / count;
+    }
+
+    public static int sampleDistribution(Vector distribution) {
+        /**
+         * Samples the given probability distribution
+         */
+        
+        Random rand = new Random();
+        double sample = rand.nextDouble();
+
+        double sum = 0.0;
+        for (int i = 0; i < distribution.length(); i++) {
+            sum += distribution.get(i);
+
+            if (sample < sum) {
+                return i;
+            }
+        }
+
+        return distribution.length();
+    }
+
+    public static Vector normalizeVector(Vector v) {
+        /**
+         * Normalizes the given vector such that the sum
+         * of all entries equals 1.
+         */
+        double[] normalized = new double[v.length()];
+        double sum = v.sum();
+        
+        for (int i = 0; i < v.length(); i++) {
+            normalized[i] = v.get(i) / sum;
+        }
+    
+        return Vector.fromArray(normalized);
     }
 
     private static void writeAsJson(JSONArray array, String path) {

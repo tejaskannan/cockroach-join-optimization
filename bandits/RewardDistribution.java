@@ -48,7 +48,7 @@ public class RewardDistribution {
 
     public double getReward(double x) {
         NormalDistribution dist = new NormalDistribution(this.getMean(), Math.sqrt(this.getVariance()));
-        return dist.cumulativeProbability(x) - 1.0;  // Make score in range [-1.0, 0.0]
+        return dist.cumulativeProbability(x);  // Reward in range [0.0, 1.0]
     }
 
     private double getMean() {

@@ -44,7 +44,9 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public void update(int arm, int type, double reward, Vector context) {
+    public void update(int arm, int type, double reward, List<Vector> contexts) {
+        Vector context = contexts.get(arm);
+
         if (super.shouldUpdate(type)){
             double normalizedReward = super.normalizeReward(reward, type);
             

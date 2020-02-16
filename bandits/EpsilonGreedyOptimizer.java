@@ -25,7 +25,7 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public void update(int arm, int type, double reward, Vector context) {
+    public void update(int arm, int type, double reward, List<Vector> contexts) {
         this.epsilon = this.epsilon * ANNEAL_RATE;
         
         if (super.shouldUpdate(type)) {

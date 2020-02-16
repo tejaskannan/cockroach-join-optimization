@@ -16,7 +16,7 @@ public class UCBOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public void update(int arm, int type, double reward, Vector context) {
+    public void update(int arm, int type, double reward, List<Vector> contexts) {
         if (super.shouldUpdate(type)) {
             double normalizedReward = super.normalizeReward(reward, type);
             super.addReward(arm, normalizedReward);

@@ -75,7 +75,7 @@ public abstract class BanditOptimizer {
         return this.counts[arm];   
     }
     
-    public void update(int arm, int type, double reward, Vector context) { }
+    public void update(int arm, int type, double reward, List<Vector> contexts) { }
 
     public abstract int getArm(int time, int type, List<Vector> contexts);
 }
