@@ -208,12 +208,19 @@ public class SQLDatabase {
     }
 
 
-    public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, double[] averageRuntimes) {
+    public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, List<HashMap<String, List<Double>>> queryRuntimes, boolean shouldSimulate) {
         SQLParser parser = new SQLParser();
+
+        // Compute best averages for each query type
+        double[] averageRuntimes = new double[queryRuntimes.size()];
+        for (int i = 0; i < averageRuntimes.length; i++) {
+            averageRuntimes[i] = Utils.getBestAverage(queryRuntimes.get(i));
+        }
 
         ArrayList<Vector> stats;
         Random rand = new Random();
         OutputStats[] outputStats = new OutputStats[numTrials];
+        double elapsed;
         for (int i = 0; i <= numTrials; i++) {
 
             // Start time to include all required preprocessing
@@ -237,14 +244,21 @@ public class SQLDatabase {
             String hashJoin = parser.toHashJoin(chosenQuery);
 
             // Execute query
-            this.select(hashJoin, false);
-
-            // Record ending time once query is complete
-            long end = System.currentTimeMillis();
+            if (shouldSimulate) {
+                // Simulates request using profiling results
+                List<Double> latencies = queryRuntimes.get(queryType).get(chosenQuery);
+                int timeIndex = rand.nextInt(latencies.size());
+                elapsed = latencies.get(timeIndex);
+            } else {
+                // Execute request against the database
+                this.select(hashJoin, false);
+                long end = System.currentTimeMillis();
+                elapsed = (double) (end - start);
+            }
 
             // Don't record first trial to avoid outliers from caching
             if (i > 0) {
-                double elapsed = (double) (end - start);
+                // double elapsed = (double) (end - start);
                 double reward = -1 * elapsed;
                 optimizer.update(arm, queryType, reward, stats);
                

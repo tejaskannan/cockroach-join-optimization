@@ -36,7 +36,7 @@ public class EXP4Optimizer extends BanditOptimizer {
     public void update(int arm, int type, double reward, List<Vector> contexts) {
 
         // Normalize reward based on the type
-        double normalizedReward = this.normalizeReward(reward, type);
+        double normalizedReward = super.normalizeReward(reward, type);
 
         // Stack contexts into a matrix (K x M)
         Matrix contextMatrix = this.stackContexts(contexts);
@@ -71,8 +71,6 @@ public class EXP4Optimizer extends BanditOptimizer {
             expWeight = Math.exp(this.nu * expertRewards.get(i)) * this.weights.get(i);
             this.weights.set(i, expWeight / expSum);
         }
-
-        System.out.println(this.weights);
 
         // Record sample for better future normalization
         super.recordSample(reward, type);

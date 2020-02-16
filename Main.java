@@ -135,7 +135,9 @@ public class Main {
                     
                     List<String> filePaths = Utils.getFiles(queryPath, ".sql");
                     List<List<String>> queries = new ArrayList<List<String>>();
-                    double[] averageRuntimes = new double[filePaths.size()];
+                    List<HashMap<String, List<Double>>> queryRuntimes = new ArrayList<HashMap<String, List<Double>>>();
+                    
+                    // double[] averageRuntimes = new double[filePaths.size()];
 
                     int index = 0;
                     for (String path : filePaths) {
@@ -143,18 +145,21 @@ public class Main {
 
                         String fileName = Utils.getFileName(path);
                         String profilePath = String.format("%s/%s", profileFolder, fileName.replace(".sql", ".json")); 
-                        averageRuntimes[index] = Utils.readProfilingFromJson(profilePath);
+                        queryRuntimes.add(Utils.readProfilingFromJson(profilePath));
+
+                        // averageRuntimes[index] = Utils.readProfilingFromJson(profilePath);
 
                         index += 1;
                     }
 
                     int numArms = queries.get(0).size();
                     int numTypes = queries.size();
+                    boolean shouldSimulate = true;
                     List<BanditOptimizer> optimizers = Utils.getOptimizers(optConfig, numArms, numTypes);
 
                     HashMap<String, OutputStats[]> results = new HashMap<String, OutputStats[]>();
                     for (BanditOptimizer optimizer : optimizers) {
-                        OutputStats[] outputStats = db.runJoinQuery(queries, optimizer, numTrials, averageRuntimes);
+                        OutputStats[] outputStats = db.runJoinQuery(queries, optimizer, numTrials, queryRuntimes, shouldSimulate);
                         results.put(optimizer.getName(), outputStats);
                     }
 

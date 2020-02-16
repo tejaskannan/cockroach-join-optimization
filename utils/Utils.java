@@ -147,15 +147,15 @@ public class Utils {
     }
 
 
-    public static double readProfilingFromJson(String path) {
+    public static HashMap<String, List<Double>> readProfilingFromJson(String path) {
         /**
          * Loads profiling results from serialized JSON file.
          *
          * @param path: Path to JSON file with profile results
-         * @return The best average query latency for all queries in the file
+         * @return A map of query to a list of latency traces
          */        
         JSONParser parser = new JSONParser();
-        double bestAverage = Double.MAX_VALUE;
+        HashMap<String, List<Double>> resultMap = new HashMap<String, List<Double>>();
 
         try (FileReader reader = new FileReader(path)) {
  
@@ -166,11 +166,15 @@ public class Utils {
             JSONArray profilingArray = (JSONArray) rawObject;
             for (Object profileObject : profilingArray) {
                 JSONObject profileJsonObj = (JSONObject) profileObject;
-                
-                double latencyAverage = average((JSONArray) profileJsonObj.get("latency"));
-                if (latencyAverage < bestAverage) {
-                    bestAverage = latencyAverage;
+                String query = (String) profileJsonObj.get("query");
+
+                List<Double> latencies = new ArrayList<Double>();
+                JSONArray latencyArray = (JSONArray) profileJsonObj.get("latency");
+                for (Object measurement : latencyArray) {
+                    latencies.add((double) measurement);
                 }
+
+                resultMap.put(query, latencies);
             }
 
         } catch (FileNotFoundException ex) {
@@ -181,8 +185,24 @@ public class Utils {
                 ex.printStackTrace();
         }
 
+        return resultMap;
+    }
+
+    
+    public static double getBestAverage(HashMap<String, List<Double>> latencies) {
+        /**
+         * Returns the best average latency for each query in the given map.
+         */
+        double bestAverage = Double.MAX_VALUE;
+        for (String query : latencies.keySet()) {
+            double avg = average(latencies.get(query));
+            if (avg < bestAverage) {
+                bestAverage = avg;
+            }
+        }
         return bestAverage;
     }
+
 
     public static void saveRegretsAsJson(Map<String, OutputStats[]> regretMap, String outputFile) {
         /**
