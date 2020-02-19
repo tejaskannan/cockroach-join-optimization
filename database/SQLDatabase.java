@@ -20,6 +20,7 @@ import org.la4j.Vector;
 import utils.Utils;
 import utils.OutputStats;
 import parsing.SQLParser;
+import parsing.TableColumn;
 import bandits.BanditOptimizer;
 
 
@@ -150,15 +151,17 @@ public class SQLDatabase {
         }
     }
 
-    private Vector getStats(List<String> tableOrder, List<String> colOrder) {
+    private Vector getStats(List<TableColumn> colOrder) {
         ArrayList<Statistics> statsList = new ArrayList<Statistics>();
 
         // TODO: Fix issue where the is 1 more column than table (right now, the last column is ignored)
-        for (int j = 0; j < tableOrder.size(); j++) {
-            String table = tableOrder.get(j);
-            String column = colOrder.get(j);
+        for (int j = 0; j < colOrder.size(); j++) {
+            TableColumn column = colOrder.get(j);
             
-            Statistics colStats = this.tableStats.get(table).get(String.format("{%s}", column));
+            String tableName = column.getTableName();
+            String columnName = column.getColumnName();
+
+            Statistics colStats = this.tableStats.get(tableName).get(String.format("{%s}", columnName));
             statsList.add(colStats);
         }
 
@@ -243,15 +246,15 @@ public class SQLDatabase {
             // Start time to include all required preprocessing
             long start = System.currentTimeMillis();
 
+            // Select random query to run
             int queryType = rand.nextInt(queries.size());
             List<String> queryOrders = queries.get(queryType);
 
+            // Create context from database statistics
             stats = new ArrayList<Vector>();
             for (String query : queryOrders) {
-                List<String> tableOrder = parser.getTableOrder(query);
-                List<String> columnOrder = parser.getColumnOrder(query);
-                System.out.println(columnOrder);
-                stats.add(this.getStats(tableOrder, columnOrder));
+                List<TableColumn> columnOrder = parser.getColumnOrder(query);
+                stats.add(this.getStats(columnOrder));
             }
 
             // Select query using the context for each statistics ordering

@@ -49,11 +49,11 @@ public class SQLParser {
             Statement statement = pm.parse(new StringReader(sql));
             if (statement instanceof Select) {
                 Select selectStatement = (Select) statement;
- 
+
                 // Get joined tables and columns
                 InnerJoinVisitor tablesNamesFinder = new InnerJoinVisitor();
                 List<Table> tableList = tablesNamesFinder.getTableList(selectStatement);
-                
+ 
                 List<String> tableNames = new ArrayList<String>();
                 for (Table t : tableList) {
                     tableNames.add(t.getWholeTableName());
@@ -66,7 +66,7 @@ public class SQLParser {
         return null;
     }
 
-    public List<String> getColumnOrder(String sql) {
+    public List<TableColumn> getColumnOrder(String sql) {
         try {
             CCJSqlParserManager pm = new CCJSqlParserManager();
             Statement statement = pm.parse(new StringReader(sql));
@@ -78,15 +78,21 @@ public class SQLParser {
                 List<TableJoin> joinList = tablesNamesFinder.getJoinList(selectStatement);
                 List<Table> tableList = tablesNamesFinder.getTableList(selectStatement);
 
-                List<String> colNames = new ArrayList<String>();
-                for (Table table : tableList) {
-                    for (TableJoin join : joinList) {
-                        
+                String colName;
+                List<TableColumn> colNames = new ArrayList<TableColumn>();
+                for (TableJoin join : joinList) {
+                    for (Table table : tableList) { 
                         if (table.getAlias().equals(join.getLeft().getTable().getWholeTableName())) {
-                            colNames.add(join.getLeft().getColumnName());
+                            colName = join.getLeft().getColumnName();
+                            colNames.add(new TableColumn(table.getWholeTableName(), colName));
                             break;
-                        } else if (table.getAlias().equals(join.getRight().getTable().getWholeTableName())) {
-                            colNames.add(join.getRight().getColumnName());
+                        }
+                    }
+   
+                    for (Table table : tableList) {
+                        if (table.getAlias().equals(join.getRight().getTable().getWholeTableName())) {
+                            colName = join.getRight().getColumnName();
+                            colNames.add(new TableColumn(table.getWholeTableName(), colName));
                             break;
                         }
                     }
