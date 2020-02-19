@@ -1,6 +1,7 @@
 package bandits;
 
-
+import java.util.Random;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.la4j.Matrix;
@@ -16,6 +17,7 @@ public class EXP4Optimizer extends BanditOptimizer {
     private double gamma;
     private int numExperts;
     private Vector weights;
+    private Random rand;
 
     public EXP4Optimizer(int numArms, int numTypes, int numExperts, double nu, double gamma) {
         super(numArms, numTypes, String.format("EXP4-%4.3f-%4.3f", nu, gamma));
@@ -23,6 +25,8 @@ public class EXP4Optimizer extends BanditOptimizer {
         this.nu = nu;
         this.gamma = gamma;
         this.numExperts = numExperts;
+
+        this.rand = new Random();
 
         // Initialize weights to uniform distribution
         double[] weightsArray = new double[numExperts];
@@ -40,10 +44,10 @@ public class EXP4Optimizer extends BanditOptimizer {
 
         // Stack contexts into a matrix (K x M)
         Matrix contextMatrix = this.stackContexts(contexts);
+        Utils.normalizeColumns(contextMatrix);
 
         // Form distribution (K x 1)
-        Vector contextProduct = contextMatrix.multiply(this.weights);
-        Vector distribution = Utils.normalizeVector(contextProduct);
+        Vector distribution = contextMatrix.multiply(this.weights);
 
         // Estimate Action Rewards (K x 1)
         double[] actionRewardsArray = new double[distribution.length()];
@@ -80,13 +84,13 @@ public class EXP4Optimizer extends BanditOptimizer {
     public int getArm(int time, int type, List<Vector> contexts) {
         // Stack contexts into a matrix (K x M)
         Matrix contextMatrix = this.stackContexts(contexts);
+        Utils.normalizeColumns(contextMatrix);
 
         // Form distribution (K x 1)
-        Vector contextProduct = contextMatrix.multiply(this.weights);
-        Vector distribution = Utils.normalizeVector(contextProduct);
+        Vector distribution = contextMatrix.multiply(this.weights);
 
         // Sample from the distribution to get the right arm
-        int arm = Utils.sampleDistribution(distribution);
+        int arm = Utils.sampleDistribution(distribution, this.rand);
 
         return arm;
     }

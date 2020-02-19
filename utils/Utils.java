@@ -23,6 +23,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.la4j.Vector;
+import org.la4j.Matrix;
 
 import bandits.OptimizerFactory;
 import bandits.BanditOptimizer;
@@ -203,6 +204,21 @@ public class Utils {
         return bestAverage;
     }
 
+    
+    public static double getWorstAverage(HashMap<String, List<Double>> latencies) {
+        /**
+         * Returns the worse average latency for each query in the given map.
+         */
+        double worstAverage = -Double.MAX_VALUE;
+        for (String query : latencies.keySet()) {
+            double avg = average(latencies.get(query));
+            if (avg > worstAverage) {
+                worstAverage = avg;
+            }
+        }
+        return worstAverage;
+    }
+
 
     public static void saveRegretsAsJson(Map<String, OutputStats[]> regretMap, String outputFile) {
         /**
@@ -268,12 +284,11 @@ public class Utils {
         return sum / count;
     }
 
-    public static int sampleDistribution(Vector distribution) {
+    public static int sampleDistribution(Vector distribution, Random rand) {
         /**
          * Samples the given probability distribution
          */
         
-        Random rand = new Random();
         double sample = rand.nextDouble();
 
         double sum = 0.0;
@@ -302,6 +317,15 @@ public class Utils {
     
         return Vector.fromArray(normalized);
     }
+
+    public static Matrix normalizeColumns(Matrix mat) {
+        for (int i = 0; i < mat.columns(); i++) {
+            Vector col = mat.getColumn(i);
+            mat.setColumn(i, normalizeVector(col));
+        }
+        return mat;
+    }
+
 
     private static void writeAsJson(JSONArray array, String path) {
         /**

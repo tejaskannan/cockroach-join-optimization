@@ -24,9 +24,9 @@ public abstract class BanditOptimizer {
         this.name = name;
 
         // TODO: Make these parameters
-        double rewardEpsilon = 0.75;
-        double rewardAnneal = 0.6;
-        int updateThreshold = 5;
+        double rewardEpsilon = 0.0;
+        double rewardAnneal = 0.0;
+        int updateThreshold = 0;
 
         // Initialize reward distributions
         this.rewardDistributions = new RewardDistribution[numTypes];

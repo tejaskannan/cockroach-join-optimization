@@ -211,12 +211,29 @@ public class SQLDatabase {
     public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, List<HashMap<String, List<Double>>> queryRuntimes, boolean shouldSimulate) {
         SQLParser parser = new SQLParser();
 
-        // Compute best averages for each query type
-        double[] averageRuntimes = new double[queryRuntimes.size()];
-        for (int i = 0; i < averageRuntimes.length; i++) {
-            averageRuntimes[i] = Utils.getBestAverage(queryRuntimes.get(i));
+        // Compute best and worst averages for each query type
+        double[] bestAverages = new double[queryRuntimes.size()];
+        double[] worstAverages = new double[queryRuntimes.size()];
+        for (int i = 0; i < queryRuntimes.size(); i++) {
+            bestAverages[i] = Utils.getBestAverage(queryRuntimes.get(i));
+            worstAverages[i] = Utils.getWorstAverage(queryRuntimes.get(i));
         }
 
+        // Compute averages for each query
+        List<HashMap<String, Double>> averageRuntimes = new ArrayList<HashMap<String, Double>>();
+        for (int i = 0; i < queryRuntimes.size(); i++) {
+            HashMap<String, List<Double>> profilingResults  = queryRuntimes.get(i);
+            HashMap<String, Double> averages = new HashMap<String, Double>();
+
+            for (String query : profilingResults.keySet()) {
+                double avg = Utils.average(profilingResults.get(query));
+                averages.put(query, avg);
+            }
+
+            averageRuntimes.add(averages);
+        }
+
+        // Run queries
         ArrayList<Vector> stats;
         Random rand = new Random();
         OutputStats[] outputStats = new OutputStats[numTrials];
@@ -233,6 +250,7 @@ public class SQLDatabase {
             for (String query : queryOrders) {
                 List<String> tableOrder = parser.getTableOrder(query);
                 List<String> columnOrder = parser.getColumnOrder(query);
+                System.out.println(columnOrder);
                 stats.add(this.getStats(tableOrder, columnOrder));
             }
 
@@ -248,7 +266,8 @@ public class SQLDatabase {
                 // Simulates request using profiling results
                 List<Double> latencies = queryRuntimes.get(queryType).get(chosenQuery);
                 int timeIndex = rand.nextInt(latencies.size());
-                elapsed = latencies.get(timeIndex);
+                long end = System.currentTimeMillis();
+                elapsed = latencies.get(timeIndex) + ((double) (end - start));
             } else {
                 // Execute request against the database
                 this.select(hashJoin, false);
@@ -258,12 +277,11 @@ public class SQLDatabase {
 
             // Don't record first trial to avoid outliers from caching
             if (i > 0) {
-                // double elapsed = (double) (end - start);
                 double reward = -1 * elapsed;
                 optimizer.update(arm, queryType, reward, stats);
                
                 double normalizedReward = optimizer.normalizeReward(reward, queryType);
-                double regret = elapsed - averageRuntimes[queryType];
+                double regret = (averageRuntimes.get(queryType).get(chosenQuery)- bestAverages[queryType]) / (worstAverages[queryType] - bestAverages[queryType]);
                 outputStats[i-1] = new OutputStats(elapsed, normalizedReward, regret, arm, queryType);
             }
         }
