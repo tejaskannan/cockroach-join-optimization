@@ -24,5 +24,18 @@ public class TableColumn {
         return String.format("%s -> %s", this.getTableName(), this.getColumnName());
     }
 
-}
+    @Override
+    public boolean equals(Object other) {
+        if (other instanceof TableColumn) {
+            TableColumn otherCol = (TableColumn) other;
+            return this.getTableName().equals(otherCol.getTableName()) &&
+                this.getColumnName().equals(otherCol.getColumnName());
+        }
+        return false;
+    }
 
+    @Override
+    public int hashCode() {
+        return this.getTableName().hashCode() + this.getColumnName().hashCode();
+    }
+}

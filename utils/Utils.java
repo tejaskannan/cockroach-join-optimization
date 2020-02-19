@@ -190,12 +190,12 @@ public class Utils {
     }
 
     
-    public static double getBestAverage(HashMap<String, List<Double>> latencies) {
+    public static double getBestAverage(HashMap<String, List<Double>> latencies, List<String> queries) {
         /**
          * Returns the best average latency for each query in the given map.
          */
         double bestAverage = Double.MAX_VALUE;
-        for (String query : latencies.keySet()) {
+        for (String query : queries) {
             double avg = average(latencies.get(query));
             if (avg < bestAverage) {
                 bestAverage = avg;
@@ -205,12 +205,12 @@ public class Utils {
     }
 
     
-    public static double getWorstAverage(HashMap<String, List<Double>> latencies) {
+    public static double getWorstAverage(HashMap<String, List<Double>> latencies, List<String> queries) {
         /**
          * Returns the worse average latency for each query in the given map.
          */
         double worstAverage = -Double.MAX_VALUE;
-        for (String query : latencies.keySet()) {
+        for (String query : queries) {
             double avg = average(latencies.get(query));
             if (avg > worstAverage) {
                 worstAverage = avg;

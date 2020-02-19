@@ -107,6 +107,26 @@ public class SQLParser {
 
     }
 
+    public HashMap<TableColumn, Integer> getWhereCounts(String sql) {
+         try {
+            CCJSqlParserManager pm = new CCJSqlParserManager();
+            Statement statement = pm.parse(new StringReader(sql));
+            if (statement instanceof Select) {
+                Select selectStatement = (Select) statement;
+
+                // Get joined tables and columns
+                InnerJoinVisitor tablesNamesFinder = new InnerJoinVisitor();
+                return tablesNamesFinder.getEqualityWhereCounts(selectStatement);
+            }
+        } catch (JSQLParserException ex) {
+            ex.printStackTrace();
+        }
+        return null;
+
+
+    }
+
+
     public String whereToInnerJoin(String sql) {
         try {
             CCJSqlParserManager pm = new CCJSqlParserManager();

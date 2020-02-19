@@ -78,10 +78,4 @@ public class RewardDistribution {
         return diff / ((double) this.samples.size());
     }
 
-
-
 }
-
-
-
-

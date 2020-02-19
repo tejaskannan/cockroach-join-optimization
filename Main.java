@@ -171,7 +171,8 @@ public class Main {
                 } else {
                     List<String> queries = Utils.readQueries(tokens[1]);
                     SQLParser parser = new SQLParser();
-                    parser.whereToInnerJoin(queries.get(0));
+                    parser.getWhereCounts(queries.get(0));
+                    System.out.println(parser.whereToInnerJoin(queries.get(0)));
                 }
             } else if (cmd.equals("PROFILE")) {
                 if (tokens.length < 4) {

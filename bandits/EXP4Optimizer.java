@@ -92,6 +92,9 @@ public class EXP4Optimizer extends BanditOptimizer {
         // Sample from the distribution to get the right arm
         int arm = Utils.sampleDistribution(distribution, this.rand);
 
+        // System.out.printf("Type: %d, Arm: %d\n", type, arm);
+        // System.out.println(distribution);
+
         return arm;
     }
 

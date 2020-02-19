@@ -18,7 +18,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 	
     private List<Table> tables;
     private List<TableJoin> joins;
-
+    private HashMap<Column, Integer> whereCounts = null;
 
 	public List<Table> getTableList(Select select) {
 		tables = new ArrayList<Table>();
@@ -32,6 +32,27 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
         joins = new ArrayList<TableJoin>();
         select.getSelectBody().accept(this);
         return joins;
+    }
+
+    public HashMap<TableColumn, Integer> getEqualityWhereCounts(Select select) {
+        tables = new ArrayList<Table>();
+        joins = new ArrayList<TableJoin>();
+        whereCounts = new HashMap<Column, Integer>();
+
+        // Parse the SQL
+        select.getSelectBody().accept(this);
+
+        HashMap<TableColumn, Integer> colCounts = new HashMap<TableColumn, Integer>();
+        for (Column col : whereCounts.keySet()) {
+            for (Table table : tables) {
+                if (col.getTable().getWholeTableName().equals(table.getAlias())) {
+                    TableColumn tableCol = new TableColumn(table.getWholeTableName(), col.getColumnName());
+                    colCounts.put(tableCol, whereCounts.get(col));
+                }
+            }
+        }
+ 
+        return colCounts;
     }
 
     @Override
@@ -138,6 +159,16 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 	public void visit(InExpression inExpression) {
 		inExpression.getLeftExpression().accept(this);
 		inExpression.getItemsList().accept(this);
+
+        Column col = (Column) inExpression.getLeftExpression();
+        
+        ExpressionList whereExpr = (ExpressionList) inExpression.getItemsList();
+        int count = whereExpr.getExpressions().size();
+
+        if (whereCounts != null) {
+            whereCounts.put(col, count);
+        }
+
 	}
 
     @Override

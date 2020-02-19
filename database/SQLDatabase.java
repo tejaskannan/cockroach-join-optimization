@@ -151,10 +151,30 @@ public class SQLDatabase {
         }
     }
 
-    private Vector getStats(List<TableColumn> colOrder) {
-        ArrayList<Statistics> statsList = new ArrayList<Statistics>();
+    private Vector getStats(List<TableColumn> colOrder, HashMap<TableColumn, Integer> whereCounts) {
+        /**
+         * Return statistics for a given column order and where clause selectivity
+         * 
+         * @param colOrder Order of columns in the join ordering
+         * @param whereCounts: Map of table columns to where clause selectivity. Null if no where clauses.
+         * @return A vector containing the statistics for this column order
+         */
+        // Create table multipliers
+        HashMap<String, Double> whereMultipliers = new HashMap<String, Double>();
+        if (whereCounts != null) {
+            for (TableColumn column : whereCounts.keySet()) {
+                String tableName = column.getTableName();
+                String columnName = column.getColumnName();
 
-        // TODO: Fix issue where the is 1 more column than table (right now, the last column is ignored)
+                Statistics colStats = this.tableStats.get(tableName).get(String.format("{%s}", columnName));
+                double keepFraction = ((double) whereCounts.get(column)) / colStats.getTableRows();
+
+                whereMultipliers.put(tableName, keepFraction);
+            }
+        }
+
+        
+        ArrayList<Statistics> statsList = new ArrayList<Statistics>();
         for (int j = 0; j < colOrder.size(); j++) {
             TableColumn column = colOrder.get(j);
             
@@ -165,7 +185,7 @@ public class SQLDatabase {
             statsList.add(colStats);
         }
 
-        return Statistics.combineStatistics(statsList);
+        return Statistics.combineStatistics(statsList, whereMultipliers);
     }
 
     public void profileQueries(List<String> queries, int numTrials, String outputPath) {
@@ -218,19 +238,28 @@ public class SQLDatabase {
         double[] bestAverages = new double[queryRuntimes.size()];
         double[] worstAverages = new double[queryRuntimes.size()];
         for (int i = 0; i < queryRuntimes.size(); i++) {
-            bestAverages[i] = Utils.getBestAverage(queryRuntimes.get(i));
-            worstAverages[i] = Utils.getWorstAverage(queryRuntimes.get(i));
+            bestAverages[i] = Utils.getBestAverage(queryRuntimes.get(i), queries.get(i));
+            worstAverages[i] = Utils.getWorstAverage(queryRuntimes.get(i), queries.get(i));
         }
 
         // Compute averages for each query
         List<HashMap<String, Double>> averageRuntimes = new ArrayList<HashMap<String, Double>>();
+        int[] bestArms = new int[queries.size()];
         for (int i = 0; i < queryRuntimes.size(); i++) {
             HashMap<String, List<Double>> profilingResults  = queryRuntimes.get(i);
             HashMap<String, Double> averages = new HashMap<String, Double>();
 
-            for (String query : profilingResults.keySet()) {
+            bestArms[i] = -1;
+            int a = 0;
+            for (String query : queries.get(i)) {
                 double avg = Utils.average(profilingResults.get(query));
                 averages.put(query, avg);
+
+                if (avg == bestAverages[i]) {
+                    bestArms[i] = a;
+                }
+
+                a += 1;
             }
 
             averageRuntimes.add(averages);
@@ -254,7 +283,8 @@ public class SQLDatabase {
             stats = new ArrayList<Vector>();
             for (String query : queryOrders) {
                 List<TableColumn> columnOrder = parser.getColumnOrder(query);
-                stats.add(this.getStats(columnOrder));
+                HashMap<TableColumn, Integer> whereCounts = parser.getWhereCounts(query);
+                stats.add(this.getStats(columnOrder, whereCounts));
             }
 
             // Select query using the context for each statistics ordering
@@ -284,8 +314,8 @@ public class SQLDatabase {
                 optimizer.update(arm, queryType, reward, stats);
                
                 double normalizedReward = optimizer.normalizeReward(reward, queryType);
-                double regret = (averageRuntimes.get(queryType).get(chosenQuery)- bestAverages[queryType]) / (worstAverages[queryType] - bestAverages[queryType]);
-                outputStats[i-1] = new OutputStats(elapsed, normalizedReward, regret, arm, queryType);
+                double regret = (averageRuntimes.get(queryType).get(chosenQuery) - bestAverages[queryType]) / (worstAverages[queryType] - bestAverages[queryType]);
+                outputStats[i-1] = new OutputStats(elapsed, normalizedReward, regret, arm, queryType, bestArms[queryType]);
             }
         }
 
