@@ -67,9 +67,9 @@ public class Statistics {
         for (Statistics stats : statsIter) {
 
             double keepFraction = 1.0;
-            if (whereMultipliers.containsKey(stats.getTableName())) {
-                keepFraction = whereMultipliers.get(stats.getTableName());
-            }
+            //if (whereMultipliers.containsKey(stats.getTableName())) {
+            //    keepFraction = whereMultipliers.get(stats.getTableName());
+            //}
 
             // Save results for each table and column
             tableStats.add(stats.getTableRows() * keepFraction);

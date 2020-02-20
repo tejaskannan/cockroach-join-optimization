@@ -167,12 +167,11 @@ public class SQLDatabase {
                 String columnName = column.getColumnName();
 
                 Statistics colStats = this.tableStats.get(tableName).get(String.format("{%s}", columnName));
-                double keepFraction = ((double) whereCounts.get(column)) / colStats.getTableRows();
+                double keepFraction = ((double) whereCounts.get(column)) / colStats.getTableDistinct();
 
                 whereMultipliers.put(tableName, keepFraction);
             }
         }
-
         
         ArrayList<Statistics> statsList = new ArrayList<Statistics>();
         for (int j = 0; j < colOrder.size(); j++) {
@@ -188,14 +187,22 @@ public class SQLDatabase {
         return Statistics.combineStatistics(statsList, whereMultipliers);
     }
 
-    public void profileQueries(List<String> queries, int numTrials, String outputPath) {
+    public void profileQueries(List<String> queries, int numTrials, String outputPath, boolean fixOrderings) {
         /**
          * Profile given queries by measuring query execution latency.
          *
          * @param queries: Queries to execute
          * @param numTrials: Number of trials to execute
          * @param outputPath: Output JSON path (results are saved directly into this file)
+         * @param fixOrderings: Whether to fix table orderings using join hints
          */
+        // If the orders are not fixed, then we only test one query. Cockroach will automatically reorder
+        // as it sees fit.
+        if (!fixOrderings) {
+            List<String> single = new ArrayList<String>();
+            single.add(queries.get(0));
+            queries = single;
+        }
 
         // Initialize the results map (query -> list of latency measurements)   
         HashMap<String, List<Double>> results = new HashMap<String, List<Double>>();
@@ -209,9 +216,12 @@ public class SQLDatabase {
             for (String query : queries) {
                 
                 // Convert to hash joins to control query ordering
-                String hashJoin = parser.toHashJoin(query);
+                String joinQuery = query;
+                if (fixOrderings) {
+                    joinQuery = parser.toHashJoin(query);
+                }
 
-                try (PreparedStatement pstmt = this.connection.prepareStatement(hashJoin)) {
+                try (PreparedStatement pstmt = this.connection.prepareStatement(joinQuery)) {
                     long start = System.currentTimeMillis();
                     pstmt.executeQuery();
                     long end = System.currentTimeMillis();
@@ -240,6 +250,7 @@ public class SQLDatabase {
         for (int i = 0; i < queryRuntimes.size(); i++) {
             bestAverages[i] = Utils.getBestAverage(queryRuntimes.get(i), queries.get(i));
             worstAverages[i] = Utils.getWorstAverage(queryRuntimes.get(i), queries.get(i));
+            
         }
 
         // Compute averages for each query
@@ -248,7 +259,7 @@ public class SQLDatabase {
         for (int i = 0; i < queryRuntimes.size(); i++) {
             HashMap<String, List<Double>> profilingResults  = queryRuntimes.get(i);
             HashMap<String, Double> averages = new HashMap<String, Double>();
-
+        
             bestArms[i] = -1;
             int a = 0;
             for (String query : queries.get(i)) {

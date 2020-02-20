@@ -181,6 +181,11 @@ public class Main {
                     String path = tokens[1].trim();
                     int numTrials = Integer.parseInt(tokens[2]);
                     String outputFolder = Utils.strip(tokens[3]);
+                    boolean fixOrderings = true;
+                
+                    if (tokens.length >= 5) {
+                        fixOrderings = Boolean.parseBoolean(tokens[4]);
+                    }
 
                     List<String> queryPaths = Utils.getFiles(path, ".sql");
                     for (String queryPath : queryPaths) {
@@ -191,7 +196,7 @@ public class Main {
                         System.out.println(outputPath);
 
                         List<String> queries = Utils.readQueries(queryPath);
-                        db.profileQueries(queries, numTrials, outputPath);
+                        db.profileQueries(queries, numTrials, outputPath, fixOrderings);
                     }
                 }
             } else {
