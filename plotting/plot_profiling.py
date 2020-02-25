@@ -29,11 +29,11 @@ def plot_profiling(profile_results: List[List[Dict[str, Any]]], queries: List[Li
                 avg_time = np.average(order_times)
                 std_time = np.std(order_times)
 
-                ax.bar(x=query_type + offset * BAR_WIDTH, height=avg_time, yerr=std_time, width=BAR_WIDTH, capsize=2, color=colors[order_index])
+                ax.bar(x=query_type + offset * BAR_WIDTH + 1, height=avg_time, yerr=std_time, width=BAR_WIDTH, capsize=2, color=colors[order_index])
 
                 offset += 1
 
-        ax.set_xticks(list(range(len(queries))))
+        ax.set_xticks(list(range(1, len(queries) + 1)))
 
         ax.set_xlabel('Query Type')
         ax.set_ylabel('Average Execution Latency (ms)')

@@ -27,4 +27,23 @@ public class OptimizerFactory {
         System.out.printf("No optimizer with name %s\n", name);
         return null;
     }
+
+    public static BanditOptimizer loadBandit(Object serialized, String fileName) {
+        fileName = fileName.toLowerCase();
+
+        if (fileName.startsWith("epsilongreedy")) {
+            return (EpsilonGreedyOptimizer) serialized;
+        } else if (fileName.startsWith("ucb")) {
+            return (UCBOptimizer) serialized;
+        } else if (fileName.startsWith("random")) {
+            return (RandomOptimizer) serialized;
+        } else if (fileName.startsWith("exp4")) {
+            return (EXP4Optimizer) serialized;
+        }
+
+        System.out.printf("Could not parse optimizer from file: %s\n", fileName);
+        return null;
+    }
+
+
 }

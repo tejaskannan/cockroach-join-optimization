@@ -65,27 +65,35 @@ public class Statistics {
         ArrayList<Double> columnStats = new ArrayList<Double>(); 
 
         for (Statistics stats : statsIter) {
-
-            double keepFraction = 1.0;
-            //if (whereMultipliers.containsKey(stats.getTableName())) {
-            //    keepFraction = whereMultipliers.get(stats.getTableName());
-            //}
-
             // Save results for each table and column
-            tableStats.add(stats.getTableRows() * keepFraction);
-            columnStats.add(stats.getTableDistinct() * keepFraction);
+            tableStats.add(stats.getTableRows());
+            columnStats.add(stats.getTableDistinct());
         }
 
         // Normalize results and save into a single vector
         Vector result = new BasicVector(tableStats.size() + columnStats.size());
 
-        for (int i = 0; i < tableStats.size(); i++) {
-            result.set(i, tableStats.get(i));
+        for (int i = 0; i < tableStats.size(); i += 2) {
+            // Consistently order table statistics because Cockroach does not
+            // care about pairwise orderings
+            if (tableStats.get(i) >= tableStats.get(i+1)) {
+                result.set(i, tableStats.get(i));
+                result.set(i+1, tableStats.get(i+1));
+            } else {
+                result.set(i, tableStats.get(i+1));
+                result.set(i+1, tableStats.get(i));
+            }
         }
 
         int offset = tableStats.size();
-        for (int i = 0; i < columnStats.size(); i++) {
-            result.set(i + offset, columnStats.get(i));
+        for (int i = 0; i < columnStats.size(); i += 2) {
+            if (columnStats.get(i) >= columnStats.get(i+1)) {
+                result.set(i + offset, columnStats.get(i));
+                result.set(i + offset + 1, columnStats.get(i+1));
+            } else {
+                result.set(i + offset, columnStats.get(i+1));
+                result.set(i + offset + 1, columnStats.get(i));
+            }
         }
 
         return result;

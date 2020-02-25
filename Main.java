@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.Random;
 import java.util.HashMap;
+import java.io.File;
 
 import utils.Utils;
 import utils.OutputStats;
@@ -124,21 +125,19 @@ public class Main {
                     System.out.println("Not connected to a database.");
                 } 
                 else if (tokens.length < 6) {
-                     System.out.println("Must provide an optimizer file, number of trials, query folder, profile folder, and output file.");
+                     System.out.println("Must provide an optimizer file / folder, number of trials, query folder, profile folder, and output folder.");
                 } else {
 
-                    String optConfig = tokens[1].trim();
+                    String optPath = tokens[1].trim();
                     int numTrials = Integer.parseInt(tokens[2].trim());
                     String queryPath = tokens[3].trim();
                     String profileFolder = tokens[4].trim();
-                    String outputFile = Utils.strip(tokens[5]);
+                    String outputFolderPath = Utils.strip(tokens[5]);
                     
                     List<String> filePaths = Utils.getFiles(queryPath, ".sql");
                     List<List<String>> queries = new ArrayList<List<String>>();
                     List<HashMap<String, List<Double>>> queryRuntimes = new ArrayList<HashMap<String, List<Double>>>();
                     
-                    // double[] averageRuntimes = new double[filePaths.size()];
-
                     int index = 0;
                     for (String path : filePaths) {
                         queries.add(Utils.readQueries(path));
@@ -147,15 +146,21 @@ public class Main {
                         String profilePath = String.format("%s/%s", profileFolder, fileName.replace(".sql", ".json")); 
                         queryRuntimes.add(Utils.readProfilingFromJson(profilePath));
 
-                        // averageRuntimes[index] = Utils.readProfilingFromJson(profilePath);
-
                         index += 1;
                     }
 
                     int numArms = queries.get(0).size();
                     int numTypes = queries.size();
                     boolean shouldSimulate = true;
-                    List<BanditOptimizer> optimizers = Utils.getOptimizers(optConfig, numArms, numTypes);
+
+                    // Load bandits
+                    List<BanditOptimizer> optimizers;
+                    File optFile = new File(optPath);
+                    if (optFile.isDirectory()) {
+                        optimizers = Utils.loadOptimizers(optPath);
+                    } else {
+                        optimizers = Utils.getOptimizers(optPath, numArms, numTypes);
+                    }
 
                     HashMap<String, OutputStats[]> results = new HashMap<String, OutputStats[]>();
                     for (BanditOptimizer optimizer : optimizers) {
@@ -163,7 +168,20 @@ public class Main {
                         results.put(optimizer.getName(), outputStats);
                     }
 
-                    Utils.saveRegretsAsJson(results, outputFile);
+                    // Create output folder if needed
+                    File outputFolder = new File(outputFolderPath);
+                    if (!outputFolder.exists()) {
+                        outputFolder.mkdir();
+                    }
+
+                    // Serialize results as JSON
+                    String resultsFile = String.format("%s/results.json", outputFolderPath);
+                    Utils.saveRegretsAsJson(results, resultsFile);
+
+                    // Serialize all optimizers
+                    for (BanditOptimizer optimizer : optimizers) {
+                        Utils.saveOptimizer(optimizer, outputFolderPath);
+                    }
                 }
             } else if (cmd.equals("PARSE")) {
                 if (tokens.length < 2) {

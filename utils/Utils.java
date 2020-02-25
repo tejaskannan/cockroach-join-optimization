@@ -10,6 +10,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.ArrayList;
@@ -324,6 +328,60 @@ public class Utils {
             mat.setColumn(i, normalizeVector(col));
         }
         return mat;
+    }
+
+    public static void saveOptimizer(BanditOptimizer opt, String outputFolder) {
+        FileOutputStream outStream = null;
+        ObjectOutputStream objStream = null;
+
+        try {
+            String outputFile = String.format("%s/%s.ser", outputFolder, opt.getName());
+
+            outStream = new FileOutputStream(outputFile);
+            objStream = new ObjectOutputStream(outStream);
+
+            objStream.writeObject(opt);
+
+            objStream.close();
+            outStream.close();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    public static List<BanditOptimizer> loadOptimizers(String folder) {
+        List<String> serializedFiles = Utils.getFiles(folder, ".ser");
+
+        List<BanditOptimizer> optimizers = new ArrayList<BanditOptimizer>();
+
+        String fileName;
+        FileInputStream inStream;
+        ObjectInputStream objStream;
+        for (String filePath : serializedFiles) {
+            
+            fileName = getFileName(filePath);
+ 
+            try {
+                inStream = new FileInputStream(filePath);
+                objStream = new ObjectInputStream(inStream);
+
+                Object optimizerObj = objStream.readObject();
+                BanditOptimizer opt = OptimizerFactory.loadBandit(optimizerObj, fileName);
+
+                if (opt != null) {
+                    optimizers.add(opt);
+                }
+
+                objStream.close();
+                inStream.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            } catch (ClassNotFoundException ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        return optimizers;
     }
 
 

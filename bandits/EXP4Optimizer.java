@@ -16,7 +16,7 @@ public class EXP4Optimizer extends BanditOptimizer {
     private double nu;
     private double gamma;
     private int numExperts;
-    private Vector weights;
+    private double[] weights;
     private Random rand;
 
     public EXP4Optimizer(int numArms, int numTypes, int numExperts, double nu, double gamma) {
@@ -29,11 +29,10 @@ public class EXP4Optimizer extends BanditOptimizer {
         this.rand = new Random();
 
         // Initialize weights to uniform distribution
-        double[] weightsArray = new double[numExperts];
+        this.weights = new double[numExperts];
         for (int i = 0; i < numExperts; i++) {
-            weightsArray[i] = 1.0 / ((double) numExperts);
+            this.weights[i] = 1.0 / ((double) numExperts);
         }
-        this.weights = Vector.fromArray(weightsArray);
     }
 
     @Override
@@ -47,7 +46,8 @@ public class EXP4Optimizer extends BanditOptimizer {
         Utils.normalizeColumns(contextMatrix);
 
         // Form distribution (K x 1)
-        Vector distribution = contextMatrix.multiply(this.weights);
+        Vector weightVector = Vector.fromArray(this.weights);
+        Vector distribution = contextMatrix.multiply(weightVector);
 
         // Estimate Action Rewards (K x 1)
         double[] actionRewardsArray = new double[distribution.length()];
@@ -66,14 +66,14 @@ public class EXP4Optimizer extends BanditOptimizer {
 
         // Update weight distribution
         double expSum = 0.0;
-        for (int i = 0; i < this.weights.length(); i++) {
-            expSum += Math.exp(this.nu * expertRewards.get(i)) * this.weights.get(i);
+        for (int i = 0; i < this.weights.length; i++) {
+            expSum += Math.exp(this.nu * expertRewards.get(i)) * this.weights[i];
         }
 
         double expWeight;
-        for (int i = 0; i < this.weights.length(); i++) {
-            expWeight = Math.exp(this.nu * expertRewards.get(i)) * this.weights.get(i);
-            this.weights.set(i, expWeight / expSum);
+        for (int i = 0; i < this.weights.length; i++) {
+            expWeight = Math.exp(this.nu * expertRewards.get(i)) * this.weights[i];
+            this.weights[i] = expWeight / expSum;
         }
 
         // Record sample for better future normalization
@@ -87,13 +87,11 @@ public class EXP4Optimizer extends BanditOptimizer {
         Utils.normalizeColumns(contextMatrix);
 
         // Form distribution (K x 1)
-        Vector distribution = contextMatrix.multiply(this.weights);
+        Vector weightVector = Vector.fromArray(this.weights);
+        Vector distribution = contextMatrix.multiply(weightVector);
 
         // Sample from the distribution to get the right arm
         int arm = Utils.sampleDistribution(distribution, this.rand);
-
-        // System.out.printf("Type: %d, Arm: %d\n", type, arm);
-        // System.out.println(distribution);
 
         return arm;
     }

@@ -35,11 +35,14 @@ def plot_execution_times(results: List[List[Dict[str, Any]]], cockroach_profilin
 
         num_series = len(stats)
         offset = -float(num_series) / 2.0 + 0.5
-        for i, (label, results) in enumerate(stats.items()):
-            xs = [i + offset * BAR_WIDTH for i in range(len(results))]
+        for i, (label, results) in enumerate(sorted(stats.items(), key=lambda t: t[0])):
+            xs = [i + offset * BAR_WIDTH + 1 for i in range(len(results))]
             
             averages = [r['avg'] for r in results]
             errors = [r['std'] for r in results]
+
+            print(label)
+            print(averages)
 
             ax.bar(x=xs, height=averages, yerr=errors, width=BAR_WIDTH, capsize=2, color=colors[i], label=label)
 
@@ -48,7 +51,7 @@ def plot_execution_times(results: List[List[Dict[str, Any]]], cockroach_profilin
 
             offset += 1
 
-        ax.set_xticks(list(range(len(cockroach_profiling))))
+        ax.set_xticks(list(range(1, len(cockroach_profiling) + 1)))
 
         ax.set_xlabel('Query Type')
         ax.set_ylabel('Execution Time (ms)')

@@ -1,11 +1,11 @@
 package bandits;
 
-
+import java.io.Serializable;
 import java.util.List;
 import org.la4j.Vector;
 
 
-public abstract class BanditOptimizer {
+public abstract class BanditOptimizer implements Serializable {
 
     private double[] rewards;
     private int[] counts;

@@ -1,13 +1,13 @@
 package bandits;
 
-
+import java.io.Serializable;
 import java.lang.Math;
 import java.util.Random;
 import java.util.ArrayList;
 import org.apache.commons.math3.distribution.NormalDistribution;
 
 
-public class RewardDistribution {
+public class RewardDistribution implements Serializable {
 
     private int warmUpPeriod;
     private double epsilon;
