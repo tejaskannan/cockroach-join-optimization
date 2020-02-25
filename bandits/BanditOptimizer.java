@@ -72,5 +72,5 @@ public abstract class BanditOptimizer implements Serializable {
     
     public void update(int arm, int type, double reward, List<Vector> contexts) { }
 
-    public abstract int getArm(int time, int type, List<Vector> contexts);
+    public abstract int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit);
 }

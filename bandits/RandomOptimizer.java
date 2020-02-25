@@ -15,7 +15,7 @@ public class RandomOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public int getArm(int time, int type, List<Vector> contexts) {
+    public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
         return this.rand.nextInt(super.getNumArms());
     }
 }

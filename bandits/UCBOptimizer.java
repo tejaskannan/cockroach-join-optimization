@@ -26,9 +26,9 @@ public class UCBOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public int getArm(int time, int type, List<Vector> contexts) {
+    public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
 
-        if (super.shouldActGreedy(type)) {
+        if (!shouldExploit && super.shouldActGreedy(type)) {
             return this.rand.nextInt(this.getNumArms());
         }
 

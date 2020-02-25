@@ -241,7 +241,7 @@ public class SQLDatabase {
     }
 
 
-    public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, List<HashMap<String, List<Double>>> queryRuntimes, boolean shouldSimulate) {
+    public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, List<HashMap<String, List<Double>>> queryRuntimes, boolean shouldSimulate, boolean shouldUpdate) {
         SQLParser parser = new SQLParser();
 
         // Compute best and worst averages for each query type
@@ -281,6 +281,7 @@ public class SQLDatabase {
         Random rand = new Random();
         OutputStats[] outputStats = new OutputStats[numTrials];
         double elapsed;
+        boolean shouldExploit = !shouldUpdate;  // Exploit when we are in test mode
         for (int i = 0; i <= numTrials; i++) {
 
             // Start time to include all required preprocessing
@@ -299,7 +300,7 @@ public class SQLDatabase {
             }
 
             // Select query using the context for each statistics ordering
-            int arm = optimizer.getArm(i + 1, queryType, stats); 
+            int arm = optimizer.getArm(i + 1, queryType, stats, shouldExploit); 
             String chosenQuery = queryOrders.get(arm);
 
             // Turn query into a Hash Join to prevent later reordering
@@ -322,8 +323,11 @@ public class SQLDatabase {
             // Don't record first trial to avoid outliers from caching
             if (i > 0) {
                 double reward = -1 * elapsed;
-                optimizer.update(arm, queryType, reward, stats);
-               
+                
+                if (shouldUpdate) {
+                    optimizer.update(arm, queryType, reward, stats);
+                }
+
                 double normalizedReward = optimizer.normalizeReward(reward, queryType);
                 double regret = (averageRuntimes.get(queryType).get(chosenQuery) - bestAverages[queryType]) / (worstAverages[queryType] - bestAverages[queryType]);
                 outputStats[i-1] = new OutputStats(elapsed, normalizedReward, regret, arm, queryType, bestArms[queryType]);

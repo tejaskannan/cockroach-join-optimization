@@ -86,9 +86,9 @@ public class EXP4Optimizer extends BanditOptimizer {
     }
 
     @Override
-    public int getArm(int time, int type, List<Vector> contexts) {
+    public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
 
-        if (super.shouldActGreedy(type)) {
+        if (!shouldExploit && super.shouldActGreedy(type)) {
             return this.rand.nextInt(this.getNumArms());
         }
         
@@ -100,8 +100,19 @@ public class EXP4Optimizer extends BanditOptimizer {
         Vector weightVector = Vector.fromArray(this.weights);
         Vector distribution = contextMatrix.multiply(weightVector);
 
-        // Sample from the distribution to get the right arm
-        int arm = Utils.sampleDistribution(distribution, this.rand);
+        int arm = 0;
+        if (shouldExploit) {
+            double maxElem = -Double.MAX_VALUE;
+            for (int i = 0; i < distribution.length(); i++) {
+                if (distribution.get(i) > maxElem) {
+                    maxElem = distribution.get(i);
+                    arm = i;
+                }
+            }
+        } else {
+            // Sample from the distribution
+            arm = Utils.sampleDistribution(distribution, this.rand);
+        }
 
         return arm;
     }

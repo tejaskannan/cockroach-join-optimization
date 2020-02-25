@@ -60,7 +60,7 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
     }
 
     @Override
-    public int getArm(int time, int type, List<Vector> contexts) {
+    public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
         // For now, just assume type zero. We will need to make this a parameter.
         if (super.shouldActGreedy(type)) {
             return this.rand.nextInt(this.getNumArms());

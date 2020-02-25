@@ -152,19 +152,21 @@ public class Main {
                     int numArms = queries.get(0).size();
                     int numTypes = queries.size();
                     boolean shouldSimulate = true;
+                    boolean shouldUpdate = true;
 
                     // Load bandits
                     List<BanditOptimizer> optimizers;
                     File optFile = new File(optPath);
                     if (optFile.isDirectory()) {
                         optimizers = Utils.loadOptimizers(optPath);
+                        shouldUpdate = false;
                     } else {
                         optimizers = Utils.getOptimizers(optPath, numArms, numTypes);
                     }
 
                     HashMap<String, OutputStats[]> results = new HashMap<String, OutputStats[]>();
                     for (BanditOptimizer optimizer : optimizers) {
-                        OutputStats[] outputStats = db.runJoinQuery(queries, optimizer, numTrials, queryRuntimes, shouldSimulate);
+                        OutputStats[] outputStats = db.runJoinQuery(queries, optimizer, numTrials, queryRuntimes, shouldSimulate, shouldUpdate);
                         results.put(optimizer.getName(), outputStats);
                     }
 
