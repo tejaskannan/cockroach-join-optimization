@@ -64,36 +64,72 @@ public class Statistics {
         ArrayList<Double> tableStats = new ArrayList<Double>();
         ArrayList<Double> columnStats = new ArrayList<Double>(); 
 
+        ArrayList<String> tableNames = new ArrayList<String>();
+        ArrayList<String> columnNames = new ArrayList<String>();
+
         for (Statistics stats : statsIter) {
             // Save results for each table and column
             tableStats.add(stats.getTableRows());
             columnStats.add(stats.getTableDistinct());
+
+            tableNames.add(stats.getTableName());
+            columnNames.add(String.format("%s.%s".format(stats.getTableName(), stats.getColumnName())));
         }
 
         // Normalize results and save into a single vector
         Vector result = new BasicVector(tableStats.size() + columnStats.size());
 
+        HashSet<String> seenTables = new HashSet<String>();
+        double minTableSize = Double.MAX_VALUE;
         for (int i = 0; i < tableStats.size(); i += 2) {
-            // Consistently order table statistics because Cockroach does not
-            // care about pairwise orderings
-            if (tableStats.get(i) >= tableStats.get(i+1)) {
-                result.set(i, tableStats.get(i));
-                result.set(i+1, tableStats.get(i+1));
-            } else {
-                result.set(i, tableStats.get(i+1));
-                result.set(i+1, tableStats.get(i));
+            
+            double firstTableCount = tableStats.get(i);
+            if (seenTables.contains(tableNames.get(i))) {
+                firstTableCount = Math.min(firstTableCount, minTableSize);
             }
+
+            double secondTableCount = tableStats.get(i+1);
+            if (seenTables.contains(tableNames.get(i+1))) {
+                secondTableCount = Math.min(secondTableCount, minTableSize);
+            }
+
+            double smallerCount = Math.min(firstTableCount, secondTableCount);
+            double largerCount = Math.max(firstTableCount, secondTableCount);
+            
+            result.set(i, largerCount);
+            result.set(i+1, smallerCount);
+
+            seenTables.add(tableNames.get(i));
+            seenTables.add(tableNames.get(i+1));
+
+            minTableSize = Math.min(smallerCount, minTableSize);
         }
 
         int offset = tableStats.size();
+        HashSet<String> seenColumns = new HashSet<String>();
+        double minColumnCount = Double.MAX_VALUE;
         for (int i = 0; i < columnStats.size(); i += 2) {
-            if (columnStats.get(i) >= columnStats.get(i+1)) {
-                result.set(i + offset, columnStats.get(i));
-                result.set(i + offset + 1, columnStats.get(i+1));
-            } else {
-                result.set(i + offset, columnStats.get(i+1));
-                result.set(i + offset + 1, columnStats.get(i));
+            
+            double firstColumnCount = columnStats.get(i);
+            if (seenColumns.contains(columnNames.get(i))) {
+                firstColumnCount = Math.min(firstColumnCount, minColumnCount);
             }
+
+            double secondColumnCount = columnStats.get(i+1);
+            if (seenColumns.contains(columnNames.get(i+1))) {
+                secondColumnCount = Math.min(secondColumnCount, minColumnCount);
+            }
+
+            double smallerCount = Math.min(firstColumnCount, secondColumnCount);
+            double largerCount = Math.max(firstColumnCount, secondColumnCount);
+            
+            result.set(i + offset, largerCount);
+            result.set(i + offset + 1, smallerCount);
+
+            seenColumns.add(columnNames.get(i));
+            seenColumns.add(columnNames.get(i+1));
+
+            minColumnCount = Math.min(smallerCount, minColumnCount);
         }
 
         return result;
