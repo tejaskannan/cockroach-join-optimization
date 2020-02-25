@@ -19,8 +19,8 @@ public class EXP4Optimizer extends BanditOptimizer {
     private double[] weights;
     private Random rand;
 
-    public EXP4Optimizer(int numArms, int numTypes, int numExperts, double nu, double gamma) {
-        super(numArms, numTypes, String.format("EXP4-%4.3f-%4.3f", nu, gamma));
+    public EXP4Optimizer(int numArms, int numTypes, int numExperts, double rewardEpsilon, double rewardAnneal, int updateThreshold, double nu, double gamma) {
+        super(numArms, numTypes, rewardEpsilon, rewardAnneal, updateThreshold, String.format("EXP4-%4.3f-%4.3f", nu, gamma));
 
         this.nu = nu;
         this.gamma = gamma;
@@ -37,6 +37,11 @@ public class EXP4Optimizer extends BanditOptimizer {
 
     @Override
     public void update(int arm, int type, double reward, List<Vector> contexts) {
+
+        if (!super.shouldUpdate(type)) {
+            super.recordSample(reward, type);
+            return;
+        }
 
         // Normalize reward based on the type
         double normalizedReward = super.normalizeReward(reward, type);
@@ -82,6 +87,11 @@ public class EXP4Optimizer extends BanditOptimizer {
 
     @Override
     public int getArm(int time, int type, List<Vector> contexts) {
+
+        if (super.shouldActGreedy(type)) {
+            return this.rand.nextInt(this.getNumArms());
+        }
+        
         // Stack contexts into a matrix (K x M)
         Matrix contextMatrix = this.stackContexts(contexts);
         Utils.normalizeColumns(contextMatrix);

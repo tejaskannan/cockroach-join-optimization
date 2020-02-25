@@ -23,8 +23,8 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
     private RewardDistribution[] rewardDistributions;
     private Random rand;
 
-    public LinearThompsonSamplingOptimizer(int numArms, int numTypes, int d, double delta, double r) {
-        super(numArms, numTypes, String.format("LinearThomspon-%d-%4.3f-%5.2f", d, delta, r));
+    public LinearThompsonSamplingOptimizer(int numArms, int numTypes, double rewardEpsilon, double rewardAnneal, int updateThreshold, int d, double delta, double r) {
+        super(numArms, numTypes, rewardEpsilon, rewardAnneal, updateThreshold, String.format("LinearThomspon-%d-%4.3f-%5.2f", d, delta, r));
 
         this.d = d;
         this.delta = delta;

@@ -15,18 +15,13 @@ public abstract class BanditOptimizer implements Serializable {
     private RewardDistribution[] rewardDistributions;
     private String name;
 
-    public BanditOptimizer(int numArms, int numTypes, String name) {
+    public BanditOptimizer(int numArms, int numTypes, double rewardEpsilon, double rewardAnneal, int updateThreshold, String name) {
         this.rewards = new double[numArms];
         this.counts = new int[numArms];
         this.numArms = numArms;
         this.numTypes = numTypes;
         this.typeMax = new double[numTypes];
         this.name = name;
-
-        // TODO: Make these parameters
-        double rewardEpsilon = 0.0;
-        double rewardAnneal = 0.0;
-        int updateThreshold = 0;
 
         // Initialize reward distributions
         this.rewardDistributions = new RewardDistribution[numTypes];

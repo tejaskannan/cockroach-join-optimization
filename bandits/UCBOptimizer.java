@@ -10,8 +10,8 @@ public class UCBOptimizer extends BanditOptimizer {
 
     private Random rand;
 
-    public UCBOptimizer(int numArms, int numTypes) {
-        super(numArms, numTypes, "UCB");
+    public UCBOptimizer(int numArms, int numTypes, double rewardEpsilon, double rewardAnneal, int updateThreshold) {
+        super(numArms, numTypes, rewardEpsilon, rewardAnneal, updateThreshold, "UCB");
         this.rand = new Random();
     }
 

@@ -11,8 +11,8 @@ public class EpsilonGreedyOptimizer extends BanditOptimizer {
     private Random rand;
     private static final double ANNEAL_RATE = 0.95;
 
-    public EpsilonGreedyOptimizer(double epsilon, int numArms, int numTypes) {
-        super(numArms, numTypes, String.format("EpsilonGreedy-%4.3f", epsilon));
+    public EpsilonGreedyOptimizer(double epsilon, int numArms, int numTypes, double rewardEpsilon, double rewardAnneal, int updateThreshold) {
+        super(numArms, numTypes, rewardEpsilon, rewardAnneal, updateThreshold, String.format("EpsilonGreedy-%4.3f", epsilon));
 
         this.rand = new Random();
         if (epsilon < 0.0) {

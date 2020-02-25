@@ -121,10 +121,14 @@ public class Utils {
         try (FileReader reader = new FileReader(configPath)) {
             
             // Read file
-            Object rawObject = parser.parse(reader);
+            JSONObject rawObject = (JSONObject) parser.parse(reader);
 
-            // Extract JSON array
-            JSONArray configArray = (JSONArray) rawObject;
+            double rewardEpsilon = (double) rawObject.get("rewardEpsilon");
+            double rewardAnneal = (double) rawObject.get("rewardAnneal");
+            int updateThreshold = ((Long) rawObject.get("updateThreshold")).intValue();
+
+            // Extract JSON array containing optimizer configurations
+            JSONArray configArray = (JSONArray) rawObject.get("optimizers");
 
             // Load configuration
             for (Object configObj : configArray) {
@@ -138,7 +142,7 @@ public class Utils {
                     argArray[i] = (double) args.get(i);
                 }
 
-                optimizers.add(OptimizerFactory.banditFactory(name, numArms, numTypes, argArray));
+                optimizers.add(OptimizerFactory.banditFactory(name, numArms, numTypes, rewardEpsilon, rewardAnneal, updateThreshold, argArray));
             }
         } catch (FileNotFoundException ex) {
             ex.printStackTrace();
