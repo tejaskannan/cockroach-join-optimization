@@ -249,8 +249,7 @@ public class SQLDatabase {
         double[] worstAverages = new double[queryRuntimes.size()];
         for (int i = 0; i < queryRuntimes.size(); i++) {
             bestAverages[i] = Utils.getBestAverage(queryRuntimes.get(i), queries.get(i));
-            worstAverages[i] = Utils.getWorstAverage(queryRuntimes.get(i), queries.get(i));
-            
+            worstAverages[i] = Utils.getWorstAverage(queryRuntimes.get(i), queries.get(i)); 
         }
 
         // Compute averages for each query

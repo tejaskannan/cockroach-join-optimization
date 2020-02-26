@@ -119,7 +119,6 @@ public class Utils {
         List<BanditOptimizer> optimizers = new ArrayList<BanditOptimizer>();
 
         try (FileReader reader = new FileReader(configPath)) {
-            
             // Read file
             JSONObject rawObject = (JSONObject) parser.parse(reader);
 
