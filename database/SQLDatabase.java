@@ -33,6 +33,7 @@ public class SQLDatabase {
     private String dbName;
     private String userName;
     private HashMap<String, HashMap<String, Statistics>> tableStats;
+    private HashMap<String, List<String>> tableIndexes;
     private Connection connection;
 
     private static final int BATCH_SIZE = 1000;
@@ -54,6 +55,7 @@ public class SQLDatabase {
         this.ds = ds;
  
         this.tableStats = new HashMap<String, HashMap<String, Statistics>>();
+        this.tableIndexes = new HashMap<String, List<String>>();
         this.connection = null;
     }
 
@@ -72,6 +74,8 @@ public class SQLDatabase {
                 this.createStats(table);
             }
             this.tableStats.put(table, this.getColumnStats(table));
+
+            this.tableIndexes.put(table, this.getTableIndexes(table));
         }
     }
 
@@ -149,6 +153,30 @@ public class SQLDatabase {
         } catch (SQLException ex) {
             Utils.printSQLException(ex);
         }
+    }
+
+    public List<String> getTableIndexes(String tableName) {
+        /**
+         * Fetch columns which are indexed.
+         */
+        String query = String.format("SHOW INDEX FROM %s;", tableName);
+        List<String> indexes = new ArrayList<String>();
+
+        try (PreparedStatement pstmt = this.connection.prepareStatement(query)) {
+            ResultSet rs = pstmt.executeQuery();
+
+            ResultSetMetaData meta = rs.getMetaData();
+
+            String columnName;
+            while (rs.next()) {
+                columnName = rs.getString("column_name");
+                indexes.add(columnName);
+            }
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        }
+
+        return indexes;
     }
 
     private Vector getStats(List<TableColumn> colOrder, HashMap<TableColumn, Integer> whereCounts) {

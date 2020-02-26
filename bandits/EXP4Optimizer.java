@@ -13,6 +13,7 @@ import utils.Utils;
 
 public class EXP4Optimizer extends BanditOptimizer {
 
+    private static final double MARGIN = 0.5;
     private double nu;
     private double gamma;
     private int numExperts;
@@ -58,11 +59,16 @@ public class EXP4Optimizer extends BanditOptimizer {
         double[] actionRewardsArray = new double[distribution.length()];
         for (int i = 0; i < distribution.length(); i++) {
             if (i == arm) {
-                double rewardFactor = 1.0 / (distribution.get(i) + this.gamma);
-                actionRewardsArray[i] = 1.0 - rewardFactor * (1.0 - normalizedReward);
+                actionRewardsArray[i] = (1.0 / (distribution.get(i) + 1e-7)) * (normalizedReward - MARGIN);
             } else {
-                actionRewardsArray[i] = 1.0;
+                actionRewardsArray[i] = 0.0;
             }
+            //if (i == arm) {
+            //    double rewardFactor = 1.0 / (distribution.get(i) + this.gamma);
+            //    actionRewardsArray[i] = MARGIN - rewardFactor * (MARGIN - normalizedReward);
+            //} else {
+            //    actionRewardsArray[i] = MARGIN;
+            //}
         }
 
         // Compute expert rewards
