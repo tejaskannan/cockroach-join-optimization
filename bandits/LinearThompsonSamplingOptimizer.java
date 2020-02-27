@@ -1,6 +1,5 @@
 package bandits;
 
-
 import java.lang.Math;
 import java.util.List;
 import java.util.Random;
@@ -11,6 +10,8 @@ import org.la4j.matrix.DenseMatrix;
 import org.la4j.Vector;
 import org.la4j.inversion.MatrixInverter;
 import org.la4j.inversion.GaussJordanInverter;
+
+import utils.Utils;
 
 
 public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
@@ -47,7 +48,7 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
     public void update(int arm, int type, double reward, List<Vector> contexts) {
         Vector context = contexts.get(arm);
 
-        if (super.shouldUpdate(type)){
+        if (super.shouldUpdate(arm, type)){
             double normalizedReward = super.normalizeReward(reward, type);
             
             System.out.printf("Raw Reward: %s\n", reward);
@@ -56,16 +57,11 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
             this.unnormalizedMu = this.unnormalizedMu.add(context.multiply(normalizedReward));
             this.B = this.B.add(context.outerProduct(context));
         }
-        super.recordSample(reward, type);
+        super.recordSample(reward, arm, type);
     }
 
     @Override
     public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
-        // For now, just assume type zero. We will need to make this a parameter.
-        if (super.shouldActGreedy(type)) {
-            return this.rand.nextInt(this.getNumArms());
-        }
-
         // Copy mu and B into array form
         double var = this.getVariance(time);
         MatrixInverter inverter = new GaussJordanInverter(this.B);
@@ -83,6 +79,10 @@ public class LinearThompsonSamplingOptimizer extends BanditOptimizer {
         double[] muArray = new double[mu.length()];
         for (int i = 0; i < mu.length(); i++) {
             muArray[i] = mu.get(i);
+        }
+
+        if (shouldExploit || super.shouldActGreedy()) {
+            return Utils.argMax(mu);
         }
 
         // Sample the distribution

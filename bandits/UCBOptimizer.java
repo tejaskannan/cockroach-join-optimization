@@ -17,21 +17,16 @@ public class UCBOptimizer extends BanditOptimizer {
 
     @Override
     public void update(int arm, int type, double reward, List<Vector> contexts) {
-        if (super.shouldUpdate(type)) {
+        if (super.shouldUpdate(arm, type)) {
             double normalizedReward = super.normalizeReward(reward, type);
             super.addReward(arm, normalizedReward);
             super.incrementCount(arm);
         }
-        super.recordSample(reward, type);
+        super.recordSample(reward, arm, type);
     }
 
     @Override
     public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
-
-        if (!shouldExploit && super.shouldActGreedy(type)) {
-            return this.rand.nextInt(this.getNumArms());
-        }
-
         int maxArm = -1;
         double maxScore = -Double.MAX_VALUE;
 

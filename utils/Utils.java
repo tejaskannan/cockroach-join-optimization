@@ -310,6 +310,21 @@ public class Utils {
         return distribution.length();
     }
 
+    public static int argMax(Vector distribution) {
+        /**
+         * Returns the index corresponding to the largest value.
+         */
+        double maxElem = -Double.MAX_VALUE;
+        int max_index = 0;
+        for (int i = 0; i < distribution.length(); i++) {
+            if (distribution.get(i) > maxElem) {
+                maxElem = distribution.get(i);
+                max_index = i;
+            }
+        }
+        return max_index;
+    }
+
     public static Vector normalizeVector(Vector v) {
         /**
          * Normalizes the given vector such that the sum

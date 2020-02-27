@@ -39,8 +39,8 @@ public class EXP4Optimizer extends BanditOptimizer {
     @Override
     public void update(int arm, int type, double reward, List<Vector> contexts) {
 
-        if (!super.shouldUpdate(type)) {
-            super.recordSample(reward, type);
+        if (!super.shouldUpdate(arm, type)) {
+            super.recordSample(reward, arm, type);
             return;
         }
 
@@ -59,17 +59,11 @@ public class EXP4Optimizer extends BanditOptimizer {
         double[] actionRewardsArray = new double[distribution.length()];
         for (int i = 0; i < distribution.length(); i++) {
             if (i == arm) {
-                actionRewardsArray[i] = (1.0 / (distribution.get(i) + 1e-7)) * (normalizedReward - MARGIN);
+                actionRewardsArray[i] = (1.0 / (distribution.get(i) + this.gamma + 1e-7)) * (normalizedReward + MARGIN);
             } else {
                 actionRewardsArray[i] = 0.0;
             }
-            //if (i == arm) {
-            //    double rewardFactor = 1.0 / (distribution.get(i) + this.gamma);
-            //    actionRewardsArray[i] = MARGIN - rewardFactor * (MARGIN - normalizedReward);
-            //} else {
-            //    actionRewardsArray[i] = MARGIN;
-            //}
-        }
+       }
 
         // Compute expert rewards
         Vector actionRewards = Vector.fromArray(actionRewardsArray);  // (K x 1)
@@ -88,16 +82,11 @@ public class EXP4Optimizer extends BanditOptimizer {
         }
 
         // Record sample for better future normalization
-        super.recordSample(reward, type);
+        super.recordSample(reward, arm, type);
     }
 
     @Override
     public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
-
-        if (!shouldExploit && super.shouldActGreedy(type)) {
-            return this.rand.nextInt(this.getNumArms());
-        }
-        
         // Stack contexts into a matrix (K x M)
         Matrix contextMatrix = this.stackContexts(contexts);
         Utils.normalizeColumns(contextMatrix);
@@ -107,14 +96,8 @@ public class EXP4Optimizer extends BanditOptimizer {
         Vector distribution = contextMatrix.multiply(weightVector);
 
         int arm = 0;
-        if (shouldExploit) {
-            double maxElem = -Double.MAX_VALUE;
-            for (int i = 0; i < distribution.length(); i++) {
-                if (distribution.get(i) > maxElem) {
-                    maxElem = distribution.get(i);
-                    arm = i;
-                }
-            }
+        if (shouldExploit || super.shouldActGreedy()) {
+            arm = Utils.argMax(distribution);
         } else {
             // Sample from the distribution
             arm = Utils.sampleDistribution(distribution, this.rand);
@@ -133,5 +116,4 @@ public class EXP4Optimizer extends BanditOptimizer {
     
         return contextMatrix;
     }
-
 }

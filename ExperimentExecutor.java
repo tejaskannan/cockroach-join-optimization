@@ -41,8 +41,11 @@ public class ExperimentExecutor {
         List<HashMap<String, List<Double>>> trainQueryRuntimes;
         List<HashMap<String, List<Double>>> testQueryRuntimes;
 
+        int index = 0;
         for (HashMap<String, String> config : configs) {
-            
+
+            System.out.printf("======= Starting experiment %d =======\n", index);
+
             // Connect to training database
             trainDb = new SQLDatabase("localhost", 26257, config.get("train_db"), "root");
             trainDb.open();
@@ -91,16 +94,22 @@ public class ExperimentExecutor {
             testQueries = getQueries(config.get("testing_queries"));
             testQueryRuntimes = getQueryRuntimes(config.get("testing_queries"), config.get("testing_profile"));
 
+            int numTestTypes = testQueries.size();
+            boolean shouldUpdate = Boolean.parseBoolean(config.get("update_during_testing"));
+
             // Run testing
             results = new HashMap<String, OutputStats[]>();
             for (BanditOptimizer optimizer : optimizers) {
-                OutputStats[] outputStats = testDb.runJoinQuery(testQueries, optimizer, testTrials, testQueryRuntimes, true, false);
+                optimizer.addQueryTypes(numTestTypes - optimizer.getNumTypes());
+                OutputStats[] outputStats = testDb.runJoinQuery(testQueries, optimizer, testTrials, testQueryRuntimes, true, shouldUpdate);
                 results.put(optimizer.getName(), outputStats);
             }
 
             // Save testing results
             String testResultsFile = String.format("%s/test_results.json", config.get("output_folder"));
             Utils.saveRegretsAsJson(results, testResultsFile);
+
+            index += 1;
         }
 
     }
@@ -144,8 +153,10 @@ public class ExperimentExecutor {
 
             JSONArray configArray = (JSONArray) parser.parse(reader);
             
-            HashMap<String, String> config = new HashMap<String, String>();
+            HashMap<String, String> config;
             for (int i = 0; i < configArray.size(); i++) {
+                config = new HashMap<String, String>();
+
                 JSONObject configObj = (JSONObject) configArray.get(i);
 
                 config.put("training_queries", (String) configObj.get("training_queries"));
@@ -158,6 +169,7 @@ public class ExperimentExecutor {
                 config.put("test_db", (String) configObj.get("test_db"));
                 config.put("train_trials", (String) configObj.get("train_trials"));
                 config.put("test_trials", (String) configObj.get("test_trials"));
+                config.put("update_during_testing", (String) configObj.get("update_during_testing"));
 
                 configs.add(config);
             }
