@@ -56,12 +56,17 @@ public class RewardDistribution implements Serializable {
 
         // Set mixture parameters
         double mean = 0.0;
-        double variance = 0.0;
-        double mixtureProb = 1.0 / ((double) this.getNumArms());  // Assume even distribution of samples to avoid bias
+        double mixtureWeight = 1.0 / ((double) this.getNumArms());  // Assume even distribution of samples to avoid bias 
+        double expected_sq = 0.0;
         for (int a = 0; a < this.getNumArms(); a++) {
-            mean += mixtureProb * means[a];
-            variance += (mixtureProb * mixtureProb) * variances[a];
+            System.out.printf("(Arm: %d, Mean: %f, Variance: %f) ", a, means[a], variances[a]);
+
+            mean += mixtureWeight * means[a]; 
+            expected_sq += mixtureWeight * (means[a] * means[a] +  variances[a]);
         }
+
+        double variance = expected_sq - (mean * mean);
+        System.out.printf("Mean: %f, Std: %f", mean, Math.sqrt(Math.max(variance, DEFAULT_VAR)));
 
         NormalDistribution dist = new NormalDistribution(mean, Math.sqrt(Math.max(variance, DEFAULT_VAR)));
         return dist.cumulativeProbability(x) - 1.0;  // Reward in range [-1.0, 0.0]
