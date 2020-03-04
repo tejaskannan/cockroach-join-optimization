@@ -85,6 +85,10 @@ public class SQLDatabase {
         this.debug = d;
     }
 
+    public HashMap<String, HashMap<String, Statistics>> getTableStats() {
+        return this.tableStats;
+    }
+
     public void open() {
         /**
          * Open the database connection
@@ -234,27 +238,26 @@ public class SQLDatabase {
         return indexes;
     }
 
-    private Vector getStats(List<TableColumn> colOrder, HashMap<TableColumn, Integer> whereCounts) {
+    private Vector getStats(List<TableColumn> colOrder, HashMap<String, Double> whereSelectivity) {
         /**
          * Return statistics for a given column order and where clause selectivity
          * 
          * @param colOrder Order of columns in the join ordering
-         * @param whereCounts: Map of table columns to where clause selectivity. Null if no where clauses.
+         * @param whereSelectivity: Map of table names to where clause selectivity. Null if no where clauses.
          * @return A vector containing the statistics for this column order
          */
         // Create table multipliers
-        HashMap<String, Double> whereMultipliers = new HashMap<String, Double>();
-        if (whereCounts != null) {
-            for (TableColumn column : whereCounts.keySet()) {
-                String tableName = column.getTableName();
-                String columnName = column.getColumnName();
+       // if (whereSelectivity != null) {
+       //     for (TableColumn column : whereCounts.keySet()) {
+       //         String tableName = column.getTableName();
+       //         String columnName = column.getColumnName();
 
-                Statistics colStats = this.tableStats.get(tableName).get(columnName);
-                double keepFraction = ((double) whereCounts.get(column)) / colStats.getTableDistinct();
+       //         Statistics colStats = this.tableStats.get(tableName).get(columnName);
+       //         double keepFraction = ((double) whereCounts.get(column)) / colStats.getTableDistinct();
 
-                whereMultipliers.put(tableName, keepFraction);
-            }
-        }
+       //         whereMultipliers.put(tableName, keepFraction);
+       //     }
+       // }
         
         ArrayList<Statistics> statsList = new ArrayList<Statistics>();
         for (int j = 0; j < colOrder.size(); j++) {
@@ -267,7 +270,7 @@ public class SQLDatabase {
             statsList.add(colStats);
         }
 
-        return Statistics.combineStatistics(statsList, whereMultipliers);
+        return Statistics.combineStatistics(statsList, whereSelectivity);
     }
 
     public void profileQueries(List<String> queries, int numTrials, String outputPath, boolean fixOrderings) {
@@ -383,8 +386,8 @@ public class SQLDatabase {
             stats = new ArrayList<Vector>();
             for (String query : queryOrders) {
                 List<TableColumn> columnOrder = parser.getColumnOrder(query);
-                HashMap<TableColumn, Integer> whereCounts = parser.getWhereCounts(query);
-                stats.add(this.getStats(columnOrder, whereCounts));
+                HashMap<String, Double> whereSelectivity = parser.getWhereSelectivity(query, this.tableStats);
+                stats.add(this.getStats(columnOrder, whereSelectivity));
             }
 
             // Select query using the context for each statistics ordering

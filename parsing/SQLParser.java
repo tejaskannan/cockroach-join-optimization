@@ -15,6 +15,8 @@ import net.sf.jsqlparser.parser.CCJSqlParserManager;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.schema.Table;
 
+import database.Statistics;
+
 
 public class SQLParser {
 
@@ -107,7 +109,7 @@ public class SQLParser {
 
     }
 
-    public HashMap<TableColumn, Integer> getWhereCounts(String sql) {
+    public HashMap<String, Double> getWhereSelectivity(String sql, HashMap<String, HashMap<String, Statistics>> tableStats) {
          try {
             CCJSqlParserManager pm = new CCJSqlParserManager();
             Statement statement = pm.parse(new StringReader(sql));
@@ -116,7 +118,7 @@ public class SQLParser {
 
                 // Get joined tables and columns
                 InnerJoinVisitor tablesNamesFinder = new InnerJoinVisitor();
-                return tablesNamesFinder.getEqualityWhereCounts(selectStatement);
+                return tablesNamesFinder.getWhereSelectivity(selectStatement, tableStats);
             }
         } catch (JSQLParserException ex) {
             ex.printStackTrace();

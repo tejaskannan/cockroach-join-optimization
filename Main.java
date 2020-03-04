@@ -191,7 +191,7 @@ public class Main {
                 } else {
                     List<String> queries = Utils.readQueries(tokens[1]);
                     SQLParser parser = new SQLParser();
-                    System.out.println(parser.getWhereCounts(queries.get(0)));
+                    System.out.println(parser.getWhereSelectivity(queries.get(0), db.getTableStats()));
                 }
             } else if (cmd.equals("PROFILE")) {
                 if (tokens.length < 4) {

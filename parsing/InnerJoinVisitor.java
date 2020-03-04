@@ -13,12 +13,16 @@ import net.sf.jsqlparser.statement.select.*;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.schema.Column;
 
+import database.Range;
+import database.Statistics;
+
 
 public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, ExpressionVisitor, ItemsListVisitor {
 	
     private List<Table> tables;
     private List<TableJoin> joins;
-    private HashMap<Column, Integer> whereCounts = null;
+    private HashMap<Column, Integer> equalityCounts = null;
+    private HashMap<Column, Range> rangeValues = null;
 
 	public List<Table> getTableList(Select select) {
 		tables = new ArrayList<Table>();
@@ -34,25 +38,52 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
         return joins;
     }
 
-    public HashMap<TableColumn, Integer> getEqualityWhereCounts(Select select) {
+    public HashMap<String, Double> getWhereSelectivity(Select select, HashMap<String, HashMap<String, Statistics>> tableStats) {
         tables = new ArrayList<Table>();
         joins = new ArrayList<TableJoin>();
-        whereCounts = new HashMap<Column, Integer>();
+        equalityCounts = new HashMap<Column, Integer>();
+        rangeValues = new HashMap<Column, Range>();
 
         // Parse the SQL
         select.getSelectBody().accept(this);
 
-        HashMap<TableColumn, Integer> colCounts = new HashMap<TableColumn, Integer>();
-        for (Column col : whereCounts.keySet()) {
+        HashMap<String, Double> tableSelectivity = new HashMap<String, Double>();
+        
+        Statistics stats;
+        double keepFrac;
+        double count;
+        for (Column col : equalityCounts.keySet()) {
             for (Table table : tables) {
                 if (col.getTable().getWholeTableName().equals(table.getAlias())) {
                     TableColumn tableCol = new TableColumn(table.getWholeTableName(), col.getColumnName());
-                    colCounts.put(tableCol, whereCounts.get(col));
+                    stats = tableStats.get(table.getWholeTableName()).get(col.getColumnName());
+
+                    count = (double) equalityCounts.get(col);
+                    keepFrac = count / stats.getTableDistinct();
+                    tableSelectivity.put(table.getWholeTableName(), keepFrac);
                 }
             }
         }
+
+        Range selectionRange;
+        int intersection;
+        for (Column col : rangeValues.keySet()) {
+            for (Table table : tables) {
+                 if (col.getTable().getWholeTableName().equals(table.getAlias())) {
+                    TableColumn tableCol = new TableColumn(table.getWholeTableName(), col.getColumnName());
+                    stats = tableStats.get(table.getWholeTableName()).get(col.getColumnName());
+                    selectionRange = rangeValues.get(col);
+
+                    intersection = selectionRange.intersect(stats.getRange());
  
-        return colCounts;
+                    keepFrac = ((double) intersection) / stats.getTableDistinct();
+                    tableSelectivity.put(table.getWholeTableName(), keepFrac);
+                }
+
+            }
+        }
+
+        return tableSelectivity;
     }
 
     @Override
@@ -142,9 +173,9 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
         Expression left = equalsTo.getLeftExpression();
         Expression right = equalsTo.getRightExpression();
 
-        if (left instanceof Column && whereCounts != null) {
+        if (left instanceof Column && equalityCounts != null) {
             Column col = (Column) left;
-            whereCounts.put(col, 1);
+            equalityCounts.put(col, 1);
         }
     }
 
@@ -154,12 +185,38 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
     @Override
 	public void visit(GreaterThan greaterThan) {
 		visitBinaryExpression(greaterThan);
+
+        Expression left = greaterThan.getLeftExpression();
+        Expression right = greaterThan.getRightExpression();
+        getRangeFromGreater(left, right, false);
 	}
 
     @Override
 	public void visit(GreaterThanEquals greaterThanEquals) {
 		visitBinaryExpression(greaterThanEquals);
+
+        Expression left = greaterThanEquals.getLeftExpression();
+        Expression right = greaterThanEquals.getRightExpression();
+        getRangeFromGreater(left, right, true);
 	}
+
+    private void getRangeFromGreater(Expression left, Expression right, boolean isEqual) {
+        if (left instanceof Column && right instanceof LongValue && rangeValues != null) {
+            int offset = isEqual ? 0 : 1;
+            int min = ((Long) ((LongValue) right).getValue()).intValue() + offset;
+            int max = Integer.MAX_VALUE;
+            rangeValues.put((Column) left, new Range(min, max));
+        }
+    }
+
+    private void getRangeFromLess(Expression left, Expression right, boolean isEqual) {
+        if (left instanceof Column && right instanceof LongValue && rangeValues != null) {
+            int offset = isEqual ? 0 : 1;
+            int min = Integer.MIN_VALUE;
+            int max = ((Long) ((LongValue) right).getValue()).intValue() + offset;
+            rangeValues.put((Column) left, new Range(min, max));
+        }
+    }
 
 	public void visit(InExpression inExpression) {
 		inExpression.getLeftExpression().accept(this);
@@ -170,8 +227,8 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
         ExpressionList whereExpr = (ExpressionList) inExpression.getItemsList();
         int count = whereExpr.getExpressions().size();
 
-        if (whereCounts != null) {
-            whereCounts.put(col, count);
+        if (equalityCounts != null) {
+            equalityCounts.put(col, count);
         }
 
 	}

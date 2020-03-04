@@ -1,6 +1,9 @@
 package database;
 
 
+import java.lang.Math;
+
+
 public class Range {
 
     private int min;
@@ -17,6 +20,13 @@ public class Range {
 
     public int getMax() {
         return max;
+    }
+
+    public int intersect(Range that) {
+        if (that == null) {
+            return 0;
+        }
+        return Math.min(this.max, that.max) - Math.max(this.min, that.min);
     }
 
     public String toString() {
