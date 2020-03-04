@@ -3,7 +3,7 @@ package bandits;
 
 public class OptimizerFactory {
 
-    public static BanditOptimizer banditFactory(String name, int numArms, int numTypes, double rewardEpsilon, double rewardAnneal, int updateThreshold, double... args) {
+    public static BanditOptimizer banditFactory(String name, int numArms, int numTypes, int numFeatures, double rewardEpsilon, double rewardAnneal, int updateThreshold, double... args) {
         name = name.toLowerCase();
 
         if (name.equals("epsilon_greedy")) {
@@ -19,14 +19,12 @@ public class OptimizerFactory {
             double delta = args[2];
             return new LinearThompsonSamplingOptimizer(numArms, numTypes, rewardEpsilon, rewardAnneal, updateThreshold, d, r, delta);
         } else if (name.equals("exp4")) {
-            int numExperts = (int) args[0];
-            double nu = args[1];
-            double gamma = args[2];
-            return new EXP4Optimizer(numArms, numTypes, numExperts, rewardEpsilon, rewardAnneal, updateThreshold, nu, gamma);
+            double nu = args[0];
+            double gamma = args[1];
+            return new EXP4Optimizer(numArms, numTypes, numFeatures, rewardEpsilon, rewardAnneal, updateThreshold, nu, gamma);
         } else if (name.equals("linucb")) {
-            int numFeatures = (int) args[0];
-            double alpha = args[1];
-            double lambda = args[2];
+            double alpha = args[0];
+            double lambda = args[1];
             return new LinearUCBOptimizer(numArms, numTypes, numFeatures, rewardEpsilon, rewardAnneal, updateThreshold, alpha, lambda);
         }
         System.out.printf("No optimizer with name %s\n", name);

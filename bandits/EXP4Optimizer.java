@@ -39,8 +39,9 @@ public class EXP4Optimizer extends BanditOptimizer {
     @Override
     public void update(int arm, int type, double reward, List<Vector> contexts) {
 
+        super.recordSample(reward, arm, type);
+
         if (!super.shouldUpdate(arm, type)) {
-            super.recordSample(reward, arm, type);
             return;
         }
 
@@ -80,9 +81,6 @@ public class EXP4Optimizer extends BanditOptimizer {
             expWeight = Math.exp(this.nu * expertRewards.get(i)) * this.weights[i];
             this.weights[i] = expWeight / expSum;
         }
-
-        // Record sample for better future normalization
-        super.recordSample(reward, arm, type);
     }
 
     @Override

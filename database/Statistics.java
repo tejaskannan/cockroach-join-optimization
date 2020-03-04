@@ -17,6 +17,7 @@ public class Statistics {
     private double tableRows;
     private double tableDistinct;
     private double rowCount;
+    private Range range;
 
     public Statistics(String tableName, String columnName, int numRows, int numDistinct) {
         this.tableName = tableName;
@@ -27,6 +28,8 @@ public class Statistics {
         // For now, we assume that the distribution is uniform.
         // TODO: Integrate histograms
         this.rowCount = this.tableRows / this.tableDistinct;
+
+        this.range = null;
     }
 
     public String getTableName() {
@@ -47,6 +50,14 @@ public class Statistics {
 
     public double getRowCount() {
         return this.rowCount;
+    }
+
+    public Range getRange() {
+        return this.range;
+    }
+
+    public void setRange(int min, int max) {
+        this.range = new Range(min, max);
     }
 
     public String toString() {
@@ -73,7 +84,7 @@ public class Statistics {
             columnStats.add(stats.getTableDistinct());
 
             tableNames.add(stats.getTableName());
-            columnNames.add(String.format("%s.%s".format(stats.getTableName(), stats.getColumnName())));
+            columnNames.add(String.format("%s.%s", stats.getTableName(), stats.getColumnName()));
         }
 
         // Normalize results and save into a single vector
@@ -85,23 +96,23 @@ public class Statistics {
             
             double firstTableCount = tableStats.get(i);
             String firstTableName = tableNames.get(i);
-            if (whereMultipliers.containsKey(firstTableName)) {
-                firstTableCount *= whereMultipliers.get(firstTableName);
-            }
+            //if (whereMultipliers.containsKey(firstTableName)) {
+            //    firstTableCount *= whereMultipliers.get(firstTableName);
+            //}
 
-            if (seenTables.contains(firstTableName)) {
-                firstTableCount = Math.min(firstTableCount, minTableSize);
-            }
+            //if (seenTables.contains(firstTableName)) {
+            //    firstTableCount = Math.min(firstTableCount, minTableSize);
+            //}
 
             double secondTableCount = tableStats.get(i+1);
             String secondTableName = tableNames.get(i+1);
-            if (whereMultipliers.containsKey(secondTableName)) {
-                secondTableCount *= whereMultipliers.get(secondTableName);
-            }
+            //if (whereMultipliers.containsKey(secondTableName)) {
+            //    secondTableCount *= whereMultipliers.get(secondTableName);
+            //}
 
-            if (seenTables.contains(secondTableName)) {
-                secondTableCount = Math.min(secondTableCount, minTableSize);
-            }
+            //if (seenTables.contains(secondTableName)) {
+            //    secondTableCount = Math.min(secondTableCount, minTableSize);
+            //}
 
             double smallerCount = Math.min(firstTableCount, secondTableCount);
             double largerCount = Math.max(firstTableCount, secondTableCount);
@@ -123,28 +134,14 @@ public class Statistics {
         for (int i = 0; i < columnStats.size(); i += 2) {
             
             double firstColumnCount = columnStats.get(i);
-            String firstTableName = tableNames.get(i);
-            //if (whereMultipliers.containsKey(firstTableName)) {
-            //    selectivity = whereMultipliers.get(firstTableName);
-            //    remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i) / firstColumnCount);
-            //    firstColumnCount = firstColumnCount - firstColumnCount * remove_prob;
+            //if (seenColumns.contains(columnNames.get(i))) {
+            //    firstColumnCount = Math.min(firstColumnCount, minColumnCount);
             //}
-
-            if (seenColumns.contains(columnNames.get(i))) {
-                firstColumnCount = Math.min(firstColumnCount, minColumnCount);
-            }
 
             double secondColumnCount = columnStats.get(i+1);
-            String secondTableName = tableNames.get(i+1);
-            //if (whereMultipliers.containsKey(secondTableName)) {
-            //    selectivity = whereMultipliers.get(secondTableName);
-            //    remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i+1) / secondColumnCount);
-            //    secondColumnCount = secondColumnCount - secondColumnCount * remove_prob;
+            //if (seenColumns.contains(columnNames.get(i+1))) {
+            //    secondColumnCount = Math.min(secondColumnCount, minColumnCount);
             //}
-
-            if (seenColumns.contains(columnNames.get(i+1))) {
-                secondColumnCount = Math.min(secondColumnCount, minColumnCount);
-            }
 
             double smallerCount = Math.min(firstColumnCount, secondColumnCount);
             double largerCount = Math.max(firstColumnCount, secondColumnCount);
@@ -154,6 +151,26 @@ public class Statistics {
 
             seenColumns.add(columnNames.get(i));
             seenColumns.add(columnNames.get(i+1));
+
+            // Set selectivity
+           // double firstColumnSelectivity = columnStats.get(i);
+           // String firstTableName = tableNames.get(i);
+           // if (whereMultipliers.containsKey(firstTableName)) {
+           //     selectivity = whereMultipliers.get(firstTableName);
+           //     remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i) / firstColumnSelectivity);
+           //     firstColumnSelectivity -= firstColumnSelectivity * remove_prob;
+           // }
+
+           // double secondColumnSelectivity = columnStats.get(i+1);
+           // String secondTableName = tableNames.get(i+1);
+           // if (whereMultipliers.containsKey(secondTableName)) {
+           //     selectivity = whereMultipliers.get(secondTableName);
+           //     remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i+1) / secondColumnSelectivity);
+           //     secondColumnSelectivity -= secondColumnSelectivity - secondColumnSelectivity * remove_prob;
+           // }
+ 
+           // result.set(i + offset + columnStats.size(), firstColumnSelectivity);
+           // result.set(i + offset + columnStats.size() + 1, secondColumnSelectivity);
 
             minColumnCount = Math.min(smallerCount, minColumnCount);
         }

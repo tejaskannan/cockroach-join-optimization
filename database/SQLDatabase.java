@@ -73,8 +73,10 @@ public class SQLDatabase {
             if (shouldCreate) {
                 this.createStats(table);
             }
-            this.tableStats.put(table, this.getColumnStats(table));
-
+            
+            HashMap<String, Statistics> columnStats = this.getColumnStats(table);
+            this.tableStats.put(table, columnStats);
+            this.addColumnRange(table, columnStats);
             this.tableIndexes.put(table, this.getTableIndexes(table));
         }
     }
@@ -131,7 +133,9 @@ public class SQLDatabase {
                 String colName = rs.getString("column_names");
                 int rowCount = rs.getInt("row_count");
                 int distinctCount = rs.getInt("distinct_count");
-                
+               
+                colName = colName.substring(1, colName.length() - 1);
+
                 Statistics stats = new Statistics(tableName, colName, rowCount, distinctCount);
                 result.put(colName, stats);
             }
@@ -140,6 +144,57 @@ public class SQLDatabase {
         }
 
         return result;
+    }
+
+    public void addColumnRange(String tableName, HashMap<String, Statistics> columnStats) {
+
+        String[] columns = new String[columnStats.size()];
+        StringBuilder queryBuilder = new StringBuilder();
+        String query;
+
+        int index = 0;
+        for (String column : columnStats.keySet()) {
+            query = String.format("SELECT MIN(%s) AS min_value, MAX(%s) AS max_value FROM %s; ", column, column, tableName);
+            queryBuilder.append(query);
+
+            columns[index] = column;
+            index += 1;
+        }
+       
+        query = queryBuilder.toString();
+        try (PreparedStatement pstmt = this.connection.prepareStatement(query)) {
+            
+            boolean res = pstmt.execute();
+
+            index = 0;
+            while (res) {
+                ResultSet rs = pstmt.getResultSet();
+                ResultSetMetaData meta = rs.getMetaData();
+
+                while (rs.next()) {
+                    try {
+                        String column = columns[index];
+                        Statistics stats = columnStats.get(column);
+
+                        int minValue = rs.getInt("min_value");
+                        int maxValue = rs.getInt("max_value");
+                        stats.setRange(minValue, maxValue);
+                    } catch (SQLException ex) {
+                        if (!ex.getSQLState().equals("22003")) {
+                            throw ex;
+                        }
+                    }
+
+                    index += 1;
+                }
+
+                res = pstmt.getMoreResults();
+            }
+        } catch (SQLException ex) {
+            if (!ex.getSQLState().equals("22003")) {
+                Utils.printSQLException(ex);
+            }
+        }
     }
 
     public void createStats(String table) {
@@ -194,7 +249,7 @@ public class SQLDatabase {
                 String tableName = column.getTableName();
                 String columnName = column.getColumnName();
 
-                Statistics colStats = this.tableStats.get(tableName).get(String.format("{%s}", columnName));
+                Statistics colStats = this.tableStats.get(tableName).get(columnName);
                 double keepFraction = ((double) whereCounts.get(column)) / colStats.getTableDistinct();
 
                 whereMultipliers.put(tableName, keepFraction);
@@ -208,7 +263,7 @@ public class SQLDatabase {
             String tableName = column.getTableName();
             String columnName = column.getColumnName();
 
-            Statistics colStats = this.tableStats.get(tableName).get(String.format("{%s}", columnName));
+            Statistics colStats = this.tableStats.get(tableName).get(columnName);
             statsList.add(colStats);
         }
 
@@ -293,6 +348,8 @@ public class SQLDatabase {
                 double avg = Utils.average(profilingResults.get(query));
                 averages.put(query, avg);
 
+                System.out.printf("%f ", avg);
+
                 if (avg == bestAverages[i]) {
                     bestArms[i] = a;
                 }
@@ -300,7 +357,7 @@ public class SQLDatabase {
                 a += 1;
             }
 
-            System.out.printf("%d ", bestArms[i]);
+            // System.out.printf("%d ", bestArms[i]);
 
             averageRuntimes.add(averages);
         }

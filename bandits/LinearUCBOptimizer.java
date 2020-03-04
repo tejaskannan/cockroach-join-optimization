@@ -39,8 +39,9 @@ public class LinearUCBOptimizer extends BanditOptimizer {
 
     @Override
     public void update(int arm, int type, double reward, List<Vector> contexts) {
+        super.recordSample(reward, arm, type);
+
         if (!super.shouldUpdate(arm, type)) {
-            super.recordSample(reward, arm, type);
             return;
         }
 
@@ -64,8 +65,6 @@ public class LinearUCBOptimizer extends BanditOptimizer {
         for (int i = 0; i < this.numFeatures; i++) {
             this.b[i] += bUpdate.get(i);
         }
-
-        this.recordSample(reward, arm, type);
     }
 
     @Override
