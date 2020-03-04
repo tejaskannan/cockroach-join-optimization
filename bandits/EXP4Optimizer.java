@@ -48,7 +48,7 @@ public class EXP4Optimizer extends BanditOptimizer {
         double normalizedReward = super.normalizeReward(reward, type);
 
         // Stack contexts into a matrix (K x M)
-        Matrix contextMatrix = this.stackContexts(contexts);
+        Matrix contextMatrix = Utils.stackContexts(contexts);
         Utils.normalizeColumns(contextMatrix);
 
         // Form distribution (K x 1)
@@ -88,7 +88,7 @@ public class EXP4Optimizer extends BanditOptimizer {
     @Override
     public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
         // Stack contexts into a matrix (K x M)
-        Matrix contextMatrix = this.stackContexts(contexts);
+        Matrix contextMatrix = Utils.stackContexts(contexts);
         Utils.normalizeColumns(contextMatrix);
 
         // Form distribution (K x 1)
@@ -104,16 +104,5 @@ public class EXP4Optimizer extends BanditOptimizer {
         }
 
         return arm;
-    }
-
-    private Matrix stackContexts(List<Vector> contexts) {
-        int numRows = contexts.size();
-        int numCols = contexts.get(0).length();
-        Matrix contextMatrix = new Basic2DMatrix(numRows, numCols);
-        for (int i = 0; i < numRows; i++) {
-            contextMatrix.setRow(i, contexts.get(i));
-        }
-    
-        return contextMatrix;
     }
 }

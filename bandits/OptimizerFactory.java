@@ -23,6 +23,11 @@ public class OptimizerFactory {
             double nu = args[1];
             double gamma = args[2];
             return new EXP4Optimizer(numArms, numTypes, numExperts, rewardEpsilon, rewardAnneal, updateThreshold, nu, gamma);
+        } else if (name.equals("linucb")) {
+            int numFeatures = (int) args[0];
+            double alpha = args[1];
+            double lambda = args[2];
+            return new LinearUCBOptimizer(numArms, numTypes, numFeatures, rewardEpsilon, rewardAnneal, updateThreshold, alpha, lambda);
         }
         System.out.printf("No optimizer with name %s\n", name);
         return null;
@@ -39,6 +44,8 @@ public class OptimizerFactory {
             return (RandomOptimizer) serialized;
         } else if (fileName.startsWith("exp4")) {
             return (EXP4Optimizer) serialized;
+        } else if (fileName.startsWith("linucb")) {
+            return (LinearUCBOptimizer) serialized;
         }
 
         System.out.printf("Could not parse optimizer from file: %s\n", fileName);

@@ -28,6 +28,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.la4j.Vector;
 import org.la4j.Matrix;
+import org.la4j.matrix.dense.Basic2DMatrix;
 
 import bandits.OptimizerFactory;
 import bandits.BanditOptimizer;
@@ -351,6 +352,17 @@ public class Utils {
             mat.setColumn(i, normalizeVector(col));
         }
         return mat;
+    }
+
+    public static Matrix stackContexts(List<Vector> contexts) {
+        int numRows = contexts.size();
+        int numCols = contexts.get(0).length();
+        Matrix contextMatrix = new Basic2DMatrix(numRows, numCols);
+        for (int i = 0; i < numRows; i++) {
+            contextMatrix.setRow(i, contexts.get(i));
+        }
+    
+        return contextMatrix;
     }
 
     public static void saveOptimizer(BanditOptimizer opt, String outputFolder) {
