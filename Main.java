@@ -164,9 +164,11 @@ public class Main {
                         optimizers = Utils.getOptimizers(optPath, numArms, numTypes);
                     }
 
+                    int[] queryTypes = Utils.generateRandomSequence(numTypes, numTrials);
+
                     HashMap<String, OutputStats[]> results = new HashMap<String, OutputStats[]>();
                     for (BanditOptimizer optimizer : optimizers) {
-                        OutputStats[] outputStats = db.runJoinQuery(queries, optimizer, numTrials, queryRuntimes, shouldSimulate, shouldUpdate);
+                        OutputStats[] outputStats = db.runJoinQuery(queries, optimizer, numTrials, queryRuntimes, queryTypes, shouldSimulate, shouldUpdate);
                         results.put(optimizer.getName(), outputStats);
                     }
 

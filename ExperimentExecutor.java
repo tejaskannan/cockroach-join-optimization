@@ -63,10 +63,12 @@ public class ExperimentExecutor {
             // Get optimizers
             List<BanditOptimizer> optimizers = Utils.getOptimizers(config.get("optimizer_config"), numArms, numTypes);
 
+            int[] queryTypes = Utils.generateRandomSequence(numTypes, trainTrials);
+
             // Run training
             HashMap<String, OutputStats[]> results = new HashMap<String, OutputStats[]>();
             for (BanditOptimizer optimizer : optimizers) {
-                OutputStats[] outputStats = trainDb.runJoinQuery(trainQueries, optimizer, trainTrials, trainQueryRuntimes, true, true);
+                OutputStats[] outputStats = trainDb.runJoinQuery(trainQueries, optimizer, trainTrials, trainQueryRuntimes, queryTypes, true, true);
                 results.put(optimizer.getName(), outputStats);
             }
 
@@ -101,11 +103,13 @@ public class ExperimentExecutor {
             int numTestTypes = testQueries.size();
             boolean shouldUpdate = Boolean.parseBoolean(config.get("update_during_testing"));
 
+            queryTypes = Utils.generateRandomSequence(numTestTypes, testTrials);
+
             // Run testing
             results = new HashMap<String, OutputStats[]>();
             for (BanditOptimizer optimizer : optimizers) {
                 optimizer.addQueryTypes(numTestTypes - optimizer.getNumTypes());
-                OutputStats[] outputStats = testDb.runJoinQuery(testQueries, optimizer, testTrials, testQueryRuntimes, true, shouldUpdate);
+                OutputStats[] outputStats = testDb.runJoinQuery(testQueries, optimizer, testTrials, testQueryRuntimes, queryTypes, true, shouldUpdate);
                 results.put(optimizer.getName(), outputStats);
             }
 

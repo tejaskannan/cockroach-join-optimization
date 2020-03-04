@@ -161,7 +161,6 @@ public class Utils {
         return optimizers;
     }
 
-
     public static HashMap<String, List<Double>> readProfilingFromJson(String path) {
         /**
          * Loads profiling results from serialized JSON file.
@@ -420,6 +419,14 @@ public class Utils {
         return optimizers;
     }
 
+    public static int[] generateRandomSequence(int range, int length) {
+        Random rand = new Random();
+        int[] seq = new int[length + 1];
+        for (int i = 0; i <= length; i++) {
+            seq[i] = rand.nextInt(range);
+        }
+        return seq;
+    }
 
     private static void writeAsJson(JSONArray array, String path) {
         /**

@@ -327,7 +327,7 @@ public class SQLDatabase {
     }
 
 
-    public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, List<HashMap<String, List<Double>>> queryRuntimes, boolean shouldSimulate, boolean shouldUpdate) {
+    public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, List<HashMap<String, List<Double>>> queryRuntimes, int[] queryTypes, boolean shouldSimulate, boolean shouldUpdate) {
         SQLParser parser = new SQLParser();
 
         // Compute best and worst averages for each query type
@@ -379,7 +379,7 @@ public class SQLDatabase {
             long start = System.currentTimeMillis();
 
             // Select random query to run
-            int queryType = rand.nextInt(queries.size());
+            int queryType = queryTypes[i];
             List<String> queryOrders = queries.get(queryType);
 
             // Create context from database statistics

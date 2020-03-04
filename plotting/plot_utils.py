@@ -33,6 +33,12 @@ def read_queries(path: str) -> List[str]:
 
 
 def moving_average(arr: List[float], window: int):
-    sums = np.cumsum(arr)
-    sums[window:] = sums[window:] - sums[:-window]
-    return sums[window - 1:] / window
+    result: List[float] = []
+    for i in range(len(arr) - window):
+        result.append(float(np.average(arr[i:i+window])))
+    return result
+
+#def moving_average(arr: List[float], window: int):
+#    sums = np.cumsum(arr)
+#    sums[window:] = sums[window:] - sums[:-window]
+#    return sums[window - 1:] / window

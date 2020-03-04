@@ -58,8 +58,8 @@ public class OutputStats {
         result.put("normalized_reward", this.getNormalizedReward());
         result.put("query_type", this.getQueryType());
         result.put("arm", this.getArm());
-        result.put("bestArm", this.getBestArm());
-        result.put("bestTime", this.getBestTime());
+        result.put("best_arm", this.getBestArm());
+        result.put("best_time", this.getBestTime());
 
         return result;
     }
