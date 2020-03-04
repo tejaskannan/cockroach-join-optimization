@@ -141,7 +141,12 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 	public void visit(EqualsTo equalsTo) {
         Expression left = equalsTo.getLeftExpression();
         Expression right = equalsTo.getRightExpression();
-	}
+
+        if (left instanceof Column && whereCounts != null) {
+            Column col = (Column) left;
+            whereCounts.put(col, 1);
+        }
+    }
 
     @Override
 	public void visit(Function function) { }

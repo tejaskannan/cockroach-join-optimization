@@ -96,7 +96,12 @@ public class Utils {
         }
 
         if (file.isDirectory()) {
-            for (File f : file.listFiles()) {
+            // Get files in sorted order
+            File[] filesArr = file.listFiles();
+            Arrays.sort(filesArr);
+
+            // Fetch files with the given extension
+            for (File f : filesArr) {
                 if (f.getName().endsWith(extension)) {
                     result.add(f.getPath());
                 }

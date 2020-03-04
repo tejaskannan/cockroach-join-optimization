@@ -1,5 +1,6 @@
 package database;
 
+import java.lang.Math;
 import java.lang.Iterable;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -26,7 +27,6 @@ public class Statistics {
         // For now, we assume that the distribution is uniform.
         // TODO: Integrate histograms
         this.rowCount = this.tableRows / this.tableDistinct;
-
     }
 
     public String getTableName() {
@@ -84,12 +84,22 @@ public class Statistics {
         for (int i = 0; i < tableStats.size(); i += 2) {
             
             double firstTableCount = tableStats.get(i);
-            if (seenTables.contains(tableNames.get(i))) {
+            String firstTableName = tableNames.get(i);
+            if (whereMultipliers.containsKey(firstTableName)) {
+                firstTableCount *= whereMultipliers.get(firstTableName);
+            }
+
+            if (seenTables.contains(firstTableName)) {
                 firstTableCount = Math.min(firstTableCount, minTableSize);
             }
 
             double secondTableCount = tableStats.get(i+1);
-            if (seenTables.contains(tableNames.get(i+1))) {
+            String secondTableName = tableNames.get(i+1);
+            if (whereMultipliers.containsKey(secondTableName)) {
+                secondTableCount *= whereMultipliers.get(secondTableName);
+            }
+
+            if (seenTables.contains(secondTableName)) {
                 secondTableCount = Math.min(secondTableCount, minTableSize);
             }
 
@@ -99,23 +109,39 @@ public class Statistics {
             result.set(i, largerCount);
             result.set(i+1, smallerCount);
 
-            seenTables.add(tableNames.get(i));
-            seenTables.add(tableNames.get(i+1));
+            seenTables.add(firstTableName);
+            seenTables.add(secondTableName);
 
             minTableSize = Math.min(smallerCount, minTableSize);
         }
 
+        double selectivity;
+        double remove_prob;
         int offset = tableStats.size();
         HashSet<String> seenColumns = new HashSet<String>();
         double minColumnCount = Double.MAX_VALUE;
         for (int i = 0; i < columnStats.size(); i += 2) {
             
             double firstColumnCount = columnStats.get(i);
+            String firstTableName = tableNames.get(i);
+            //if (whereMultipliers.containsKey(firstTableName)) {
+            //    selectivity = whereMultipliers.get(firstTableName);
+            //    remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i) / firstColumnCount);
+            //    firstColumnCount = firstColumnCount - firstColumnCount * remove_prob;
+            //}
+
             if (seenColumns.contains(columnNames.get(i))) {
                 firstColumnCount = Math.min(firstColumnCount, minColumnCount);
             }
 
             double secondColumnCount = columnStats.get(i+1);
+            String secondTableName = tableNames.get(i+1);
+            //if (whereMultipliers.containsKey(secondTableName)) {
+            //    selectivity = whereMultipliers.get(secondTableName);
+            //    remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i+1) / secondColumnCount);
+            //    secondColumnCount = secondColumnCount - secondColumnCount * remove_prob;
+            //}
+
             if (seenColumns.contains(columnNames.get(i+1))) {
                 secondColumnCount = Math.min(secondColumnCount, minColumnCount);
             }

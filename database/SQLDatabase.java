@@ -300,8 +300,12 @@ public class SQLDatabase {
                 a += 1;
             }
 
+            System.out.printf("%d ", bestArms[i]);
+
             averageRuntimes.add(averages);
         }
+
+        System.out.println();
 
         // Run queries
         ArrayList<Vector> stats;
