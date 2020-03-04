@@ -69,6 +69,10 @@ public class LinearUCBOptimizer extends BanditOptimizer {
 
     @Override
     public int getArm(int time, int type, List<Vector> contexts, boolean shouldExploit) {
+        if (!shouldExploit && super.shouldActRandom(type)) {
+            return this.rand.nextInt(this.getNumArms());
+        }
+
         // Stack contexts into (K x D) matrix and normalize columns
         Matrix contextMatrix = Utils.stackContexts(contexts);
         Utils.normalizeColumns(contextMatrix);

@@ -5,11 +5,11 @@ from argparse import ArgumentParser
 from collections import defaultdict
 from typing import Dict, Any, List, Optional
 
-from plot_utils import read_as_json
+from plot_utils import read_as_json, moving_average
 
 
 
-def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str], concatenate: bool):
+def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str], field: str, concatenate: bool, mode: str, window: int):
     with plt.style.context('ggplot'):
         fig, ax = plt.subplots()
 
@@ -19,19 +19,27 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
             concat_results: Dict[str, List[float]] = defaultdict(list)
             for result in results:
                 for op_result in result:
-                    times = [r['elapsed_time'] for r in op_result['stats']]
+                    times = [r[field] for r in op_result['stats']]
                     concat_results[op_result['optimizer_name']].extend(times)
 
             for opt_name, times in concat_results.items():
-                cumulative_times = np.cumsum(times)
-                avg_time = [c / float(t+1) for t, c in enumerate(cumulative_times)]
+                if mode == 'cumulative':
+                    cumulative_times = np.cumsum(times)
+                    avg_time = [c / float(t+1) for t, c in enumerate(cumulative_times)]
+                else:
+                    avg_time = moving_average(times, window)
+
                 optimizer_results[opt_name].append(avg_time)
         else:
             for result in results:
                 for op_result in result:
-                    times = [r['elapsed_time'] for r in op_result['stats']] 
-                    cumulative_times = np.cumsum(times)
-                    avg_times = [t / (i+1) for i, t in enumerate(cumulative_times)]
+                    times = [r[field] for r in op_result['stats']] 
+                    
+                    if mode == 'cumulative':
+                        cumulative_times = np.cumsum(times)
+                        avg_times = [t / (i+1) for i, t in enumerate(cumulative_times)]
+                    else:
+                        avg_time = moving_average(times, window)
 
                     optimizer_results[op_result['optimizer_name']].append(avg_times)
         
@@ -46,9 +54,12 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
 
             ax.fill_between(times, avg_regret - error, avg_regret + error, alpha=0.4)
 
-        ax.set_xlabel('Time Step')
-        ax.set_ylabel('Average Elapsed Time (ms)')
-        ax.set_title('Average Query Latency for Each Optimizer')
+        label_tokens = [t.capitalize() for t in field.split('_')]
+        label = ' '.join(label_tokens)
+
+        ax.set_xlabel('Step')
+        ax.set_ylabel('Average {0}'.format(label))
+        ax.set_title('Average {0} for Each Optimizer'.format(label))
 
         ax.legend()
 
@@ -62,11 +73,14 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--result-files', type=str, nargs='+')
     parser.add_argument('--output-file', type=str)
+    parser.add_argument('--field', type=str, required=True)
     parser.add_argument('--concatenate', action='store_true')
+    parser.add_argument('--window', type=int, default=25)
+    parser.add_argument('--mode', choices=['cumulative', 'moving'])
     args = parser.parse_args()
 
     results = []
     for path in args.result_files:
         results.append(read_as_json(path))
 
-    plot_regret(results, args.output_file, args.concatenate)
+    plot_regret(results, args.output_file, args.field, args.concatenate, args.mode, args.window)

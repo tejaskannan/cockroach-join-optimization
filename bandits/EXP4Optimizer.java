@@ -26,7 +26,7 @@ public class EXP4Optimizer extends BanditOptimizer {
         this.nu = nu;
         this.gamma = gamma;
         this.numExperts = numExperts;
-
+        
         this.rand = new Random();
 
         // Initialize weights to uniform distribution
@@ -48,6 +48,8 @@ public class EXP4Optimizer extends BanditOptimizer {
         // Normalize reward based on the type (add 1 to bring into range [0.0, 1.0])
         double normalizedReward = super.normalizeReward(reward, type);
 
+        System.out.printf("Normalized Reward: %f\n", normalizedReward);
+
         // Stack contexts into a matrix (K x M)
         Matrix contextMatrix = Utils.stackContexts(contexts);
         Utils.normalizeColumns(contextMatrix);
@@ -60,7 +62,8 @@ public class EXP4Optimizer extends BanditOptimizer {
         double[] actionRewardsArray = new double[distribution.length()];
         for (int i = 0; i < distribution.length(); i++) {
             if (i == arm) {
-                actionRewardsArray[i] = (1.0 / (distribution.get(i) + this.gamma + 1e-7)) * (normalizedReward + MARGIN);
+                System.out.println(distribution.get(i));
+                actionRewardsArray[i] = (1.0 / (Math.max(distribution.get(i) + this.gamma, 1e-3))) * (normalizedReward + MARGIN);
             } else {
                 actionRewardsArray[i] = 0.0;
             }
@@ -96,10 +99,14 @@ public class EXP4Optimizer extends BanditOptimizer {
         int arm = 0;
         if (shouldExploit || super.shouldActGreedy()) {
             arm = Utils.argMax(distribution);
+        } else if (super.shouldActRandom(type)) {
+            arm = this.rand.nextInt(this.getNumArms());
         } else {
             // Sample from the distribution
             arm = Utils.sampleDistribution(distribution, this.rand);
         }
+
+        System.out.printf("Type: %d, Arm: %d, Distribution: %s ", type, arm, distribution.toString());
 
         return arm;
     }

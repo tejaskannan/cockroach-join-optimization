@@ -351,7 +351,7 @@ public class SQLDatabase {
                 double avg = Utils.average(profilingResults.get(query));
                 averages.put(query, avg);
 
-                System.out.printf("%f ", avg);
+                // System.out.printf("%f ", avg);
 
                 if (avg == bestAverages[i]) {
                     bestArms[i] = a;
@@ -360,7 +360,7 @@ public class SQLDatabase {
                 a += 1;
             }
 
-            // System.out.printf("%d ", bestArms[i]);
+            System.out.printf("%d ", bestArms[i]);
 
             averageRuntimes.add(averages);
         }
@@ -384,11 +384,17 @@ public class SQLDatabase {
 
             // Create context from database statistics
             stats = new ArrayList<Vector>();
+            // System.out.printf("Type: %d, Stats: ", queryType);
             for (String query : queryOrders) {
                 List<TableColumn> columnOrder = parser.getColumnOrder(query);
                 HashMap<String, Double> whereSelectivity = parser.getWhereSelectivity(query, this.tableStats);
-                stats.add(this.getStats(columnOrder, whereSelectivity));
+                Vector s = this.getStats(columnOrder, whereSelectivity);
+                // System.out.printf(s.toString());
+                stats.add(s);
             }
+
+
+            // System.out.println();
 
             // Select query using the context for each statistics ordering
             int arm = optimizer.getArm(i + 1, queryType, stats, shouldExploit); 
@@ -421,7 +427,7 @@ public class SQLDatabase {
 
                 double normalizedReward = optimizer.normalizeReward(reward, queryType);
                 double regret = (averageRuntimes.get(queryType).get(chosenQuery) - bestAverages[queryType]) / (worstAverages[queryType] - bestAverages[queryType]);
-                outputStats[i-1] = new OutputStats(elapsed, normalizedReward, regret, arm, queryType, bestArms[queryType]);
+                outputStats[i-1] = new OutputStats(elapsed, normalizedReward, regret, arm, queryType, bestArms[queryType], bestAverages[queryType]);
             }
         }
 

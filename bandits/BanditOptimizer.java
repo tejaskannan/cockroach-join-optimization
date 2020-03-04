@@ -8,6 +8,9 @@ import org.la4j.Vector;
 
 public abstract class BanditOptimizer implements Serializable {
 
+    private static final double EPSILON = 0.5;
+    private static final double ANNEAL = 0.9;
+
     private double[] rewards;
     private int[] counts;
     private int numArms;
@@ -20,6 +23,7 @@ public abstract class BanditOptimizer implements Serializable {
     private double originalEpsilon;
     private int updateThreshold;
     private Random rand;
+    private double[] epsilons;
 
     public BanditOptimizer(int numArms, int numTypes, double rewardEpsilon, double rewardAnneal, int updateThreshold, String name) {
         this.rewards = new double[numArms];
@@ -34,6 +38,11 @@ public abstract class BanditOptimizer implements Serializable {
         this.rewardEpsilon = rewardEpsilon;
         this.rewardAnneal = rewardAnneal;
         this.updateThreshold = updateThreshold;
+
+        this.epsilons = new double[numTypes];
+        for (int i = 0; i < numTypes; i++) {
+            this.epsilons[i] = EPSILON;
+        }
 
         // Initialize reward distributions
         this.rewardDistributions = new RewardDistribution[numTypes];
@@ -50,15 +59,19 @@ public abstract class BanditOptimizer implements Serializable {
         // Add new reward distributions
         int newNumTypes = this.getNumTypes() + numToAdd;
         RewardDistribution[] newDistributions = new RewardDistribution[newNumTypes];
+        double[] newEpsilons = new double[newNumTypes];
 
         for (int a = 0; a < newNumTypes; a++) {
             if (a < this.getNumTypes()) {
                 newDistributions[a] = this.rewardDistributions[a];
+                newEpsilons[a] = this.epsilons[a];
             } else {
                 newDistributions[a] = new RewardDistribution(this.getNumArms(), this.updateThreshold);
+                newEpsilons[a] = EPSILON;
             }
         }
 
+        this.epsilons = newEpsilons;
         this.rewardDistributions = newDistributions;
         this.numTypes = newNumTypes;
         
@@ -78,6 +91,7 @@ public abstract class BanditOptimizer implements Serializable {
         this.rewardDistributions = new RewardDistribution[numTypes];
         for (int i = 0; i < numTypes; i++) {
             this.rewardDistributions[i] = new RewardDistribution(this.getNumArms(), updateThreshold);
+            this.epsilons[i] = EPSILON;
         }
 
         this.numTypes = numTypes;
@@ -104,6 +118,18 @@ public abstract class BanditOptimizer implements Serializable {
         }
 
         this.rewardEpsilon *= this.rewardAnneal;
+        return result;
+    }
+
+    public boolean shouldActRandom(int type) {
+        double sample = this.rand.nextDouble();
+
+        boolean result = false;
+        if (sample < this.epsilons[type]) {
+            result = true;
+        }
+
+        this.epsilons[type] *= ANNEAL;
         return result;
     }
 

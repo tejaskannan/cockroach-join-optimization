@@ -86,9 +86,13 @@ public class ExperimentExecutor {
             }
 
             // Create test database
-            testDb = new SQLDatabase("localhost", 26257, config.get("test_db"), "root");
-            testDb.open();
-            testDb.refreshStats(false);
+            if (!config.get("test_db").equals(config.get("train_db"))) {
+                testDb = new SQLDatabase("localhost", 26257, config.get("test_db"), "root");
+                testDb.open();
+                testDb.refreshStats(false);
+            } else {
+                testDb = trainDb;
+            }
 
             testTrials = Integer.parseInt(config.get("test_trials"));
             testQueries = getQueries(config.get("testing_queries"));

@@ -8,16 +8,18 @@ public class OutputStats {
     private int queryType;
     private int arm;
     private int bestArm;
+    private double bestTime;
     private double elapsedTime;
     private double normalizedReward;
 
-    public OutputStats(double elapsedTime, double normalizedReward, double regret, int arm, int queryType, int bestArm) {
+    public OutputStats(double elapsedTime, double normalizedReward, double regret, int arm, int queryType, int bestArm, double bestTime) {
         this.regret = regret;
         this.queryType = queryType;
         this.elapsedTime = elapsedTime;
         this.normalizedReward = normalizedReward;
         this.arm = arm;
         this.bestArm = bestArm;
+        this.bestTime = bestTime;
     }
 
     public double getRegret() {
@@ -44,6 +46,10 @@ public class OutputStats {
         return this.bestArm;
     }
 
+    public double getBestTime() {
+        return this.bestTime;
+    }
+
     public JSONObject toJsonObject() {
         JSONObject result = new JSONObject();
 
@@ -53,6 +59,7 @@ public class OutputStats {
         result.put("query_type", this.getQueryType());
         result.put("arm", this.getArm());
         result.put("bestArm", this.getBestArm());
+        result.put("bestTime", this.getBestTime());
 
         return result;
     }
