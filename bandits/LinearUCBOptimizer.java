@@ -45,7 +45,7 @@ public class LinearUCBOptimizer extends BanditOptimizer {
         }
 
         // Normalize reward based on the query type (add one to bring into range [0, 1])
-        double normalizedReward = super.normalizeReward(reward, type) + 1.0;
+        double normalizedReward = super.normalizeReward(reward, type);
         
         // Stack contexts into (K x D) matrix and normalize columns
         Matrix contextMatrix = Utils.stackContexts(contexts);

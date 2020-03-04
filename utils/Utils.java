@@ -131,6 +131,7 @@ public class Utils {
             double rewardEpsilon = (double) rawObject.get("rewardEpsilon");
             double rewardAnneal = (double) rawObject.get("rewardAnneal");
             int updateThreshold = ((Long) rawObject.get("updateThreshold")).intValue();
+            int numFeatures = ((Long) rawObject.get("numFeatures")).intValue();
 
             // Extract JSON array containing optimizer configurations
             JSONArray configArray = (JSONArray) rawObject.get("optimizers");
@@ -147,7 +148,7 @@ public class Utils {
                     argArray[i] = (double) args.get(i);
                 }
 
-                optimizers.add(OptimizerFactory.banditFactory(name, numArms, numTypes, rewardEpsilon, rewardAnneal, updateThreshold, argArray));
+                optimizers.add(OptimizerFactory.banditFactory(name, numArms, numTypes, numFeatures, rewardEpsilon, rewardAnneal, updateThreshold, argArray));
             }
         } catch (FileNotFoundException ex) {
             ex.printStackTrace();

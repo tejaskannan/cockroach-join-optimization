@@ -44,7 +44,7 @@ public class EXP4Optimizer extends BanditOptimizer {
             return;
         }
 
-        // Normalize reward based on the type
+        // Normalize reward based on the type (add 1 to bring into range [0.0, 1.0])
         double normalizedReward = super.normalizeReward(reward, type);
 
         // Stack contexts into a matrix (K x M)

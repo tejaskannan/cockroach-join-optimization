@@ -108,7 +108,10 @@ public abstract class BanditOptimizer implements Serializable {
     }
 
     public double normalizeReward(double reward, int type) {
-        return this.rewardDistributions[type].getReward(reward);
+        // System.out.printf("Type: %d, Reward: %f ", type, reward);
+        double normalized = this.rewardDistributions[type].getReward(reward);
+        // System.out.printf(" Normalized: %f\n", normalized);
+        return normalized;
     }
 
     public int getNumArms() {
