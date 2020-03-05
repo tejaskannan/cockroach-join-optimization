@@ -151,20 +151,39 @@ public class SQLDatabase {
     }
 
     public void addColumnRange(String tableName, HashMap<String, Statistics> columnStats) {
+        /**
+         * Get ranges and average sizes for each column.
+         */
+        ArrayList<String> intColumns = new ArrayList<String>();
+        ArrayList<String> charColumns = new ArrayList<String>();
 
-        String[] columns = new String[columnStats.size()];
+        // 1) Get columns with given types
+        String query = String.format("SHOW COLUMNS FROM %s;", tableName);
+        try (PreparedStatement pstmt = this.connection.prepareStatement(query)) {
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                String dataType = rs.getString("data_type");
+                String column = rs.getString("column_name");
+                if (dataType.equals("INT8")) {
+                    intColumns.add(column);
+                } else if (dataType.startsWith("VARCHAR")) {
+                    charColumns.add(column);
+                }
+            }
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+            return;
+        }
+
+        // 2) Get ranges for integer columns
         StringBuilder queryBuilder = new StringBuilder();
-        String query;
-
-        int index = 0;
-        for (String column : columnStats.keySet()) {
+        for (String column : intColumns) {
             query = String.format("SELECT MIN(%s) AS min_value, MAX(%s) AS max_value FROM %s; ", column, column, tableName);
             queryBuilder.append(query);
-
-            columns[index] = column;
-            index += 1;
         }
        
+        int index;
         query = queryBuilder.toString();
         try (PreparedStatement pstmt = this.connection.prepareStatement(query)) {
             
@@ -176,18 +195,12 @@ public class SQLDatabase {
                 ResultSetMetaData meta = rs.getMetaData();
 
                 while (rs.next()) {
-                    try {
-                        String column = columns[index];
-                        Statistics stats = columnStats.get(column);
+                    String column = intColumns.get(index);
+                    Statistics stats = columnStats.get(column);
 
-                        int minValue = rs.getInt("min_value");
-                        int maxValue = rs.getInt("max_value");
-                        stats.setRange(minValue, maxValue);
-                    } catch (SQLException ex) {
-                        if (!ex.getSQLState().equals("22003")) {
-                            throw ex;
-                        }
-                    }
+                    int minValue = rs.getInt("min_value");
+                    int maxValue = rs.getInt("max_value");
+                    stats.setRange(minValue, maxValue);
 
                     index += 1;
                 }
@@ -195,10 +208,41 @@ public class SQLDatabase {
                 res = pstmt.getMoreResults();
             }
         } catch (SQLException ex) {
-            if (!ex.getSQLState().equals("22003")) {
-                Utils.printSQLException(ex);
-            }
+            Utils.printSQLException(ex);
         }
+
+        // 3) Get average length of string columns
+        queryBuilder = new StringBuilder();
+        for (String column : charColumns) {
+            query = String.format("SELECT AVG(length(%s)) AS avg_len FROM %s WHERE %s IS NOT NULL; ", column, tableName, column);
+            queryBuilder.append(query);
+        }
+
+        query = queryBuilder.toString();
+        try (PreparedStatement pstmt = this.connection.prepareStatement(query)) {
+            boolean res = pstmt.execute();
+
+            index = 0;
+            while (res) {
+                ResultSet rs = pstmt.getResultSet();
+                ResultSetMetaData meta = rs.getMetaData();
+
+                while (rs.next()) {
+                    String column = charColumns.get(index);
+                    Statistics stats = columnStats.get(column);
+
+                    double avgLength = rs.getDouble("avg_len");
+                    stats.setAvgLength(avgLength);
+
+                    index += 1;
+                }
+
+                res = pstmt.getMoreResults();
+            }
+        } catch (SQLException ex) {
+            Utils.printSQLException(ex);
+        }
+
     }
 
     public void createStats(String table) {

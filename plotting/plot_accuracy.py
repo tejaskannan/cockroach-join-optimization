@@ -65,7 +65,7 @@ def plot_acc(results: List[List[Dict[str, Any]]], start_time: int, output_file: 
         for concat_point in concat_points:
             x_values = [concat_point] * len(y_points)
             ax.plot(x_values, y_points, linestyle='--', linewidth=3)
-            ax.annotate('Add New Query', (concat_point, y_points[0]), xycoords='data', xytext=(0.87 * concat_point, ymin - 0.00005))
+            ax.annotate('Add New Query', (concat_point, y_points[0]), xycoords='data', xytext=(0.87 * concat_point, -0.025))
 
         ax.set_xlabel('Time Step')
         ax.set_ylabel('Average Accuracy')

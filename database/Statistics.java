@@ -18,12 +18,14 @@ public class Statistics {
     private double tableDistinct;
     private double rowCount;
     private Range range;
+    private double avgLength;
 
     public Statistics(String tableName, String columnName, int numRows, int numDistinct) {
         this.tableName = tableName;
         this.columnName = columnName;
         this.tableRows = (double) numRows;
         this.tableDistinct = (double) numDistinct;
+        this.avgLength = -1;
 
         // For now, we assume that the distribution is uniform.
         // TODO: Integrate histograms
@@ -50,6 +52,14 @@ public class Statistics {
 
     public double getRowCount() {
         return this.rowCount;
+    }
+
+    public double getAvgLength() {
+        return this.avgLength;
+    }
+
+    public void setAvgLength(double len) {
+        this.avgLength = len;
     }
 
     public Range getRange() {

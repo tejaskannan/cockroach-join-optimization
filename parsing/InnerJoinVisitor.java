@@ -1,5 +1,6 @@
 package parsing;
 
+import java.lang.Math;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -19,10 +20,14 @@ import database.Statistics;
 
 public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, ExpressionVisitor, ItemsListVisitor {
 	
+    private static final double LIKE_PERCENTAGE = 0.09;
+    private static final double LIKE_FACTOR = 6;
+
     private List<Table> tables;
     private List<TableJoin> joins;
     private HashMap<Column, Integer> equalityCounts = null;
     private HashMap<Column, Range> rangeValues = null;
+    private HashMap<Column, Boolean> likeColumns = null;
 
 	public List<Table> getTableList(Select select) {
 		tables = new ArrayList<Table>();
@@ -43,6 +48,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
         joins = new ArrayList<TableJoin>();
         equalityCounts = new HashMap<Column, Integer>();
         rangeValues = new HashMap<Column, Range>();
+        likeColumns = new HashMap<Column, Boolean>();
 
         // Parse the SQL
         select.getSelectBody().accept(this);
@@ -80,6 +86,29 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
                     tableSelectivity.put(table.getWholeTableName(), keepFrac);
                 }
 
+            }
+        }
+
+        for (Column col : likeColumns.keySet()) {
+            for (Table table : tables) {
+                 if (col.getTable().getWholeTableName().equals(table.getAlias())) {
+                    
+                    TableColumn tableCol = new TableColumn(table.getWholeTableName(), col.getColumnName());
+                    stats = tableStats.get(table.getWholeTableName()).get(col.getColumnName());
+                    
+                    // -1 is a non-present length (we omit such cases)
+                    if (stats.getAvgLength() != -1) {
+                        int logLength = stats.getAvgLength() > 2 ? (int) Math.log(stats.getAvgLength()) : 1;
+                        keepFrac = (LIKE_PERCENTAGE / LIKE_FACTOR) * ((double) logLength);
+
+                        // Invert NOT-LIKE statements
+                        if (!likeColumns.get(col)) {
+                            keepFrac = 1.0 - keepFrac;
+                        }
+
+                        tableSelectivity.put(table.getWholeTableName(), keepFrac);
+                    }
+                }
             }
         }
 
@@ -209,15 +238,6 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
         }
     }
 
-    private void getRangeFromLess(Expression left, Expression right, boolean isEqual) {
-        if (left instanceof Column && right instanceof LongValue && rangeValues != null) {
-            int offset = isEqual ? 0 : 1;
-            int min = Integer.MIN_VALUE;
-            int max = ((Long) ((LongValue) right).getValue()).intValue() + offset;
-            rangeValues.put((Column) left, new Range(min, max));
-        }
-    }
-
 	public void visit(InExpression inExpression) {
 		inExpression.getLeftExpression().accept(this);
 		inExpression.getItemsList().accept(this);
@@ -236,7 +256,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
     @Override
 	public void visit(InverseExpression inverseExpression) {
 		inverseExpression.getExpression().accept(this);
-	}
+    }
 
     @Override
 	public void visit(IsNullExpression isNullExpression) { }
@@ -247,6 +267,16 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
     @Override
 	public void visit(LikeExpression likeExpression) {
 		visitBinaryExpression(likeExpression);
+
+        Expression left = likeExpression.getLeftExpression();
+        Expression right = likeExpression.getRightExpression();
+
+        if (left instanceof Column && right instanceof StringValue && likeColumns != null) {
+            Column col = (Column) left;
+            if (!likeColumns.containsKey(col)) {
+                likeColumns.put((Column) left, !likeExpression.isNot());
+            }
+        }
 	}
 
     @Override
