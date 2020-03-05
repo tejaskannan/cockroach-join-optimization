@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 from argparse import ArgumentParser
+from math import ceil
 from collections import defaultdict
 from typing import Dict, Any, List, Optional
 
@@ -61,17 +62,17 @@ def plot_acc(results: List[List[Dict[str, Any]]], start_time: int, output_file: 
 
         # Draw points to show where new queries are introduced
         ymin, ymax = ax.get_ylim()
-        y_points = list(range(int(ymin), int(ymax) + 1))
+        y_points = [0, 1.01]
         for concat_point in concat_points:
             x_values = [concat_point] * len(y_points)
-            ax.plot(x_values, y_points, linestyle='--', linewidth=3)
-            ax.annotate('Add New Query', (concat_point, y_points[0]), xycoords='data', xytext=(0.87 * concat_point, -0.025))
+            ax.plot(x_values, y_points, linestyle='--', linewidth=2, color='gray')
+            ax.annotate('New Queries Added', (concat_point, y_points[0]), xycoords='data', xytext=(0.35 * concat_point, 0))
 
-        ax.set_xlabel('Time Step')
+        ax.set_xlabel('Step')
         ax.set_ylabel('Average Accuracy')
         ax.set_title('Average Arm Accuracy for Each Optimizer')
 
-        ax.legend()
+        ax.legend(loc='lower right', fontsize='x-small')
 
         if output_file is not None:
             plt.savefig(output_file)

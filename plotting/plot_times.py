@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+from math import ceil
 from argparse import ArgumentParser
 from collections import defaultdict
 from typing import Dict, Any, List, Optional
@@ -54,25 +55,31 @@ def get_percentage_error(results: List[List[Dict[str, Any]]], error_file: Option
         print(errors)
 
 
-def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str], field: str, concatenate: bool, mode: str, window: int, start: int):
+def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str], concatenate: bool, mode: str, window: int, start: int):
     with plt.style.context('ggplot'):
         fig, ax = plt.subplots()
 
         optimizer_results: Dict[str, List[List[float]]] = defaultdict(list)
         oracle: List[List[float]] = []
+        concat_points: List[int] = []
     
         if concatenate:
             concat_results: Dict[str, List[float]] = defaultdict(list)
             concat_oracle: List[float] = []
 
             for result in results:
-                for op_result in result:
-                    times = [r[field] for r in op_result['stats']]
+                for i, op_result in enumerate(result):
+                    times = [r['elapsed_time'] for r in op_result['stats']]
                     concat_results[op_result['optimizer_name']].extend(times)
+
+                    if i == 0:
+                        concat_points.append(len(times))
 
                 # Collect oracle results
                 op_result = next(iter(result))
                 concat_oracle.extend((r['best_time'] for r in op_result['stats']))
+
+            concat_points = np.cumsum(concat_points)[:-1]
 
             for opt_name, times in concat_results.items():
                 if mode == 'cumulative':
@@ -93,7 +100,7 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
         else:
             for result in results:
                 for op_result in result:
-                    times = [r[field] for r in op_result['stats']] 
+                    times = [r['elapsed_time'] for r in op_result['stats']] 
                     
                     if mode == 'cumulative':
                         cumulative_times = np.cumsum(times)
@@ -134,14 +141,18 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
         times = list(range(len(oracle_avg)))
         ax.plot(times, oracle_avg, label='Oracle')
 
-        label_tokens = [t.capitalize() for t in field.split('_')]
-        label = ' '.join(label_tokens)
+        ymin, ymax = ax.get_ylim()
+        y_points = list(range(0, int(ceil(ymax) + 1)))
+        for concat_point in concat_points:
+            x_values = [concat_point] * len(y_points)
+            ax.plot(x_values, y_points, linestyle='--', linewidth=2, color='gray')
+            ax.annotate('New Queries Added', (concat_point, y_points[0]), xycoords='data', xytext=(0.35 * concat_point, 0), color='black')
 
         ax.set_xlabel('Step')
-        ax.set_ylabel('Average {0}'.format(label))
-        ax.set_title('Average {0} for Each Optimizer'.format(label))
+        ax.set_ylabel('Average Elapsed Time (ms)')
+        ax.set_title('Average Query Latency for Each Optimizer')
 
-        ax.legend()
+        ax.legend(loc='lower right')
 
         if output_file is not None:
             plt.savefig(output_file)
@@ -153,7 +164,6 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--result-files', type=str, nargs='+')
     parser.add_argument('--output-folder', type=str)
-    parser.add_argument('--field', type=str, required=True)
     parser.add_argument('--concatenate', action='store_true')
     parser.add_argument('--window', type=int, default=25)
     parser.add_argument('--mode', choices=['cumulative', 'moving'])
@@ -167,5 +177,5 @@ if __name__ == '__main__':
     plot_file = os.path.join(args.output_folder, 'times.pdf') if args.output_folder is not None else None
     error_file = os.path.join(args.output_folder, 'percentage_error.json') if args.output_folder is not None else None
 
-    plot_regret(results, plot_file, args.field, args.concatenate, args.mode, args.window, args.start)
+    plot_regret(results, plot_file, args.concatenate, args.mode, args.window, args.start)
     get_percentage_error(results, error_file, args.concatenate)
