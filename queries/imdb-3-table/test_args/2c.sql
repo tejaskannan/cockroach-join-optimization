@@ -1,0 +1,2 @@
+SELECT MIN(mi.movie_id) FROM keyword AS k INNER JOIN movie_keyword as mk ON mk.keyword_id = k.id INNER JOIN movie_info AS mi ON mi.movie_id = mk.movie_id WHERE k.keyword LIKE '%deal%' AND mi.info LIKE '%USA%';
+SELECT MIN(mi.movie_id) FROM movie_keyword as mk INNER JOIN movie_info AS mi ON mi.movie_id = mk.movie_id INNER JOIN keyword AS k ON mk.keyword_id = k.id WHERE k.keyword LIKE '%deal%' AND mi.info LIKE '%USA%';

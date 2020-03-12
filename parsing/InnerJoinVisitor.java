@@ -23,11 +23,11 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
     private static final double LIKE_PERCENTAGE = 0.09;
     private static final double LIKE_FACTOR = 6;
 
-    private List<Table> tables;
-    private List<TableJoin> joins;
-    private HashMap<Column, Integer> equalityCounts = null;
-    private HashMap<Column, Range> rangeValues = null;
-    private HashMap<Column, Boolean> likeColumns = null;
+    private List<Table> tables;  // Stores table names
+    private List<TableJoin> joins;  // Stores 
+    private HashMap<Column, Integer> equalityCounts = null;  // Maps columns to number of equality predicates
+    private HashMap<Column, Range> rangeValues = null;  // Maps columns to range predicate
+    private HashMap<Column, Boolean> likeColumns = null;  // Maps columns to LIKE/NOT LIKE predicates
 
 	public List<Table> getTableList(Select select) {
 		tables = new ArrayList<Table>();
@@ -55,6 +55,7 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
 
         HashMap<String, Double> tableSelectivity = new HashMap<String, Double>();
         
+        // Integrate selectivity from predicates
         Statistics stats;
         double keepFrac;
         double count;
@@ -86,29 +87,6 @@ public class InnerJoinVisitor implements SelectVisitor, FromItemVisitor, Express
                     tableSelectivity.put(table.getWholeTableName(), keepFrac);
                 }
 
-            }
-        }
-
-        for (Column col : likeColumns.keySet()) {
-            for (Table table : tables) {
-                 if (col.getTable().getWholeTableName().equals(table.getAlias())) {
-                    
-                    TableColumn tableCol = new TableColumn(table.getWholeTableName(), col.getColumnName());
-                    stats = tableStats.get(table.getWholeTableName()).get(col.getColumnName());
-                    
-                    // -1 is a non-present length (we omit such cases)
-                    if (stats.getAvgLength() != -1) {
-                        int logLength = stats.getAvgLength() > 2 ? (int) Math.log(stats.getAvgLength()) : 1;
-                        keepFrac = (LIKE_PERCENTAGE / LIKE_FACTOR) * ((double) logLength);
-
-                        // Invert NOT-LIKE statements
-                        if (!likeColumns.get(col)) {
-                            keepFrac = 1.0 - keepFrac;
-                        }
-
-                        tableSelectivity.put(table.getWholeTableName(), keepFrac);
-                    }
-                }
             }
         }
 
