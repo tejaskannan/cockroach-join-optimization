@@ -95,4 +95,22 @@ public class LinearUCBOptimizer extends BanditOptimizer {
         int arm = Utils.argMax(s);
         return arm;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append(this.getName());
+        builder.append(": ");
+
+        Matrix AMat = Matrix.from2DArray(this.A);
+        GaussJordanInverter AInverter = new GaussJordanInverter(AMat);
+        Matrix AInv = AInverter.inverse();
+
+        Vector theta = AInv.multiply(Vector.fromArray(this.b));
+
+        builder.append(theta.toString());
+
+        return builder.toString();
+    }
 }

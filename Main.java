@@ -47,6 +47,7 @@ public class Main {
                         shouldCreateStats = Boolean.parseBoolean(tokens[3]);
                     }
 
+                    // Hard-coded to use local Cockroach Instance
                     db = new SQLDatabase("localhost", 26257, dbName, userName);
                     db.open();
                     db.refreshStats(shouldCreateStats);
@@ -210,7 +211,6 @@ public class Main {
 
                     List<String> queryPaths = Utils.getFiles(path, ".sql");
                     for (String queryPath : queryPaths) {
-                        // TODO: Replace this path construction to be platform-independent
                         String[] queryFileTokens = queryPath.split("/");
                         String queryFileName = queryFileTokens[queryFileTokens.length - 1];
                         String outputPath = String.format("%s/%s", outputFolder, queryFileName.replace(".sql", ".json"));
@@ -219,6 +219,17 @@ public class Main {
                         List<String> queries = Utils.readQueries(queryPath);
                         db.profileQueries(queries, numTrials, outputPath, fixOrderings);
                     }
+                }
+            } else if (cmd.equals("PRINT-OPTIMIZERS")) {
+                if (tokens.length < 2) {
+                    System.out.println("Must provide a folder of serialized optimizers.");
+                }
+
+                String optimizerFolder = tokens[1];
+                List<BanditOptimizer> optimizers = Utils.loadOptimizers(optimizerFolder);
+
+                for (BanditOptimizer opt : optimizers) {
+                    System.out.println(opt);
                 }
             } else {
                 System.out.printf("Unknown command %s\n", tokens[0]);

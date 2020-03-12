@@ -49,7 +49,8 @@ def plot_acc(results: List[List[Dict[str, Any]]], start_time: int, output_file: 
 
                     optimizer_results[op_result['optimizer_name']].append(avg_accuracy)
 
-        for optimizer_name, accuracy_lists in optimizer_results.items():
+        averages: List[float] = []
+        for optimizer_name, accuracy_lists in sorted(optimizer_results.items()):
             acc_matrix = np.array(accuracy_lists)
             avg_accuracy = np.average(acc_matrix, axis=0)[start_time:]
 
@@ -59,6 +60,14 @@ def plot_acc(results: List[List[Dict[str, Any]]], start_time: int, output_file: 
             ax.plot(times, avg_accuracy, label=optimizer_name)
 
             ax.fill_between(times, avg_accuracy - error, avg_accuracy + error, alpha=0.4)
+
+            averages.append(avg_accuracy[-1])
+
+        last_y_pos = -1
+        for i, avg_acc in enumerate(sorted(averages)):
+            y_pos = max(last_y_pos + 0.05, avg_acc)
+            ax.annotate(f'{avg_acc:.3f}', (times[-1], avg_acc), xycoords='data', xytext=(1.05 * times[-1], y_pos), color='black')
+            last_y_pos = y_pos
 
         # Draw points to show where new queries are introduced
         ymin, ymax = ax.get_ylim()
@@ -94,4 +103,9 @@ if __name__ == '__main__':
     for path in args.result_files:
         results.append(read_as_json(path))
 
-    plot_acc(results, args.start_time, args.output_file, args.concatenate, args.mode, args.window)
+    output_file = None
+    if args.output_file is not None:
+        folder, _name = os.path.split(args.result_files[0])
+        output_file = os.path.join(folder, args.output_file)
+
+    plot_acc(results, args.start_time, output_file, args.concatenate, args.mode, args.window)

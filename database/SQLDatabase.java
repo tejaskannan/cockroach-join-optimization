@@ -65,7 +65,6 @@ public class SQLDatabase {
          *
          * @param shouldCreate: Whether we should create statistics relations (can be expensive)
          */
-        // TODO: Do this in a synchronous manner to support refreshing in another thread
         ArrayList<String> tables = this.getTables();
 
         // Fetch statistics for all columns
@@ -290,19 +289,6 @@ public class SQLDatabase {
          * @param whereSelectivity: Map of table names to where clause selectivity. Null if no where clauses.
          * @return A vector containing the statistics for this column order
          */
-        // Create table multipliers
-       // if (whereSelectivity != null) {
-       //     for (TableColumn column : whereCounts.keySet()) {
-       //         String tableName = column.getTableName();
-       //         String columnName = column.getColumnName();
-
-       //         Statistics colStats = this.tableStats.get(tableName).get(columnName);
-       //         double keepFraction = ((double) whereCounts.get(column)) / colStats.getTableDistinct();
-
-       //         whereMultipliers.put(tableName, keepFraction);
-       //     }
-       // }
-        
         ArrayList<Statistics> statsList = new ArrayList<Statistics>();
         for (int j = 0; j < colOrder.size(); j++) {
             TableColumn column = colOrder.get(j);
@@ -372,6 +358,17 @@ public class SQLDatabase {
 
 
     public OutputStats[] runJoinQuery(List<List<String>> queries, BanditOptimizer optimizer, int numTrials, List<HashMap<String, List<Double>>> queryRuntimes, int[] queryTypes, boolean shouldSimulate, boolean shouldUpdate) {
+        /**
+         * Runs the given join queries using the provided optimizer.
+         *
+         * @param queries: List of queries where each queries is list of table orderings for the join
+         * @param optimizer: The optimizer to use to select the table orders
+         * @param numTrials: Number of trials to execute
+         * @param queryRuntimes: Profiled runtimes of queries to execute
+         * @param queryTypes: An array of numTrials + 1 integers containing the query types to execute. We pre-generate this list to standardize experiments.
+         * @param shouldSimulate: Whether we should simulate queries using profiled results
+         * @param shouldUpdate: Whether to update the optimizer parameters
+         */
         SQLParser parser = new SQLParser();
 
         // Compute best and worst averages for each query type
@@ -395,8 +392,6 @@ public class SQLDatabase {
                 double avg = Utils.average(profilingResults.get(query));
                 averages.put(query, avg);
 
-                // System.out.printf("%f ", avg);
-
                 if (avg == bestAverages[i]) {
                     bestArms[i] = a;
                 }
@@ -404,12 +399,8 @@ public class SQLDatabase {
                 a += 1;
             }
 
-            System.out.printf("%d ", bestArms[i]);
-
             averageRuntimes.add(averages);
         }
-
-        System.out.println();
 
         // Run queries
         ArrayList<Vector> stats;
@@ -428,17 +419,12 @@ public class SQLDatabase {
 
             // Create context from database statistics
             stats = new ArrayList<Vector>();
-            // System.out.printf("Type: %d, Stats: ", queryType);
             for (String query : queryOrders) {
                 List<TableColumn> columnOrder = parser.getColumnOrder(query);
                 HashMap<String, Double> whereSelectivity = parser.getWhereSelectivity(query, this.tableStats);
                 Vector s = this.getStats(columnOrder, whereSelectivity);
-                // System.out.printf(s.toString());
                 stats.add(s);
             }
-
-
-            // System.out.println();
 
             // Select query using the context for each statistics ordering
             int arm = optimizer.getArm(i + 1, queryType, stats, shouldExploit); 
@@ -479,6 +465,9 @@ public class SQLDatabase {
     }
 
     public ArrayList<String> getTables() {
+        /**
+         * Fetches a list of all tables in the database
+         */
         ArrayList<String> tables = new ArrayList<String>();
 
         try (PreparedStatement pstmt = this.connection.prepareStatement("SHOW TABLES")) {
@@ -543,6 +532,9 @@ public class SQLDatabase {
     }
 
     public int createTables(String path) {
+        /**
+         * Create tables using definitions in file located at the given path.
+         */
         int numCreated = 0;
         BufferedReader reader;
 
@@ -573,6 +565,14 @@ public class SQLDatabase {
     }
 
     public int importCsv(String tableName, String filePath, boolean useHeaders, String[] dataTypes) {
+        /**
+         * Imports all data from the given CSV file into the provided table.
+         *
+         * @param tableName: Name of the table to store data into
+         * @param filePath: Path of CSV file containing data
+         * @param useHeaders: Whether to use headers to derive data types
+         * @param dataTypes: Provided data types (can be null)
+         */
         int insertCount = 0;
         String headers = null;
 
@@ -721,7 +721,6 @@ public class SQLDatabase {
 
         return 0;
     }
-
 
     private boolean execute(String sql) {
         try (PreparedStatement pstmt = this.connection.prepareStatement(sql)) {

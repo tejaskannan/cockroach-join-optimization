@@ -96,6 +96,7 @@ public class ExperimentExecutor {
                 testDb = trainDb;
             }
 
+            boolean resetBeforeTesting = Boolean.parseBoolean(config.get("reset_before_testing"));
             testTrials = Integer.parseInt(config.get("test_trials"));
             testQueries = getQueries(config.get("testing_queries"));
             testQueryRuntimes = getQueryRuntimes(config.get("testing_queries"), config.get("testing_profile"));
@@ -108,7 +109,13 @@ public class ExperimentExecutor {
             // Run testing
             results = new HashMap<String, OutputStats[]>();
             for (BanditOptimizer optimizer : optimizers) {
-                optimizer.addQueryTypes(numTestTypes - optimizer.getNumTypes());
+                
+                if (resetBeforeTesting) {
+                    optimizer.reset(numTestTypes);
+                } else {
+                    optimizer.addQueryTypes(numTestTypes - optimizer.getNumTypes());
+                }
+
                 OutputStats[] outputStats = testDb.runJoinQuery(testQueries, optimizer, testTrials, testQueryRuntimes, queryTypes, true, shouldUpdate);
                 results.put(optimizer.getName(), outputStats);
             }
@@ -178,6 +185,7 @@ public class ExperimentExecutor {
                 config.put("train_trials", (String) configObj.get("train_trials"));
                 config.put("test_trials", (String) configObj.get("test_trials"));
                 config.put("update_during_testing", (String) configObj.get("update_during_testing"));
+                config.put("reset_before_testing", (String) configObj.get("reset_before_testing"));
 
                 configs.add(config);
             }

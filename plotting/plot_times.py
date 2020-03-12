@@ -9,6 +9,10 @@ from typing import Dict, Any, List, Optional
 from plot_utils import read_as_json, moving_average, write_as_json
 
 
+SHIFT_UP = 30
+SHIFT_DOWN = 20
+
+
 def get_percentage_error(results: List[List[Dict[str, Any]]], error_file: Optional[str], concatenate: bool):
     optimizer_results: Dict[str, List[List[float]]] = defaultdict(list)
     oracle: List[List[float]] = []
@@ -122,7 +126,8 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
 
                 oracle.append(avg_time)
  
-        for optimizer_name, regret_lists in optimizer_results.items():
+        averages: List[float] = []
+        for optimizer_name, regret_lists in sorted(optimizer_results.items()):
             regret_matrix = np.vstack(regret_lists)
             avg_regret = np.average(regret_matrix, axis=0)
 
@@ -135,11 +140,19 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
             ax.plot(times, avg_regret, label=optimizer_name)
 
             ax.fill_between(times, avg_regret - error, avg_regret + error, alpha=0.4)
+            averages.append(avg_regret[-1])
 
         oracle_matrix = np.vstack(oracle)
         oracle_avg = np.average(oracle_matrix, axis=0)[start:]
         times = list(range(len(oracle_avg)))
         ax.plot(times, oracle_avg, label='Oracle')
+        averages.append(oracle_avg[-1])
+
+        last_y_pos = -1
+        for i, avg_time in enumerate(sorted(averages)):
+            y_pos = max(last_y_pos + SHIFT_UP, avg_time - SHIFT_DOWN)
+            ax.annotate(f'{avg_time:.2f}', (times[-1], avg_time), xycoords='data', xytext=(1.05 * times[-1], y_pos), color='black')
+            last_y_pos = y_pos
 
         ymin, ymax = ax.get_ylim()
         y_points = list(range(0, int(ceil(ymax) + 1)))
@@ -152,7 +165,7 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
         ax.set_ylabel('Average Elapsed Time (ms)')
         ax.set_title('Average Query Latency for Each Optimizer')
 
-        ax.legend(loc='lower right')
+        ax.legend(fontsize='x-small')
 
         if output_file is not None:
             plt.savefig(output_file)
@@ -163,7 +176,8 @@ def plot_regret(results: List[List[Dict[str, Any]]], output_file: Optional[str],
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--result-files', type=str, nargs='+')
-    parser.add_argument('--output-folder', type=str)
+    parser.add_argument('--error-file', type=str)
+    parser.add_argument('--plot-file', type=str)
     parser.add_argument('--concatenate', action='store_true')
     parser.add_argument('--window', type=int, default=25)
     parser.add_argument('--mode', choices=['cumulative', 'moving'])
@@ -174,8 +188,15 @@ if __name__ == '__main__':
     for path in args.result_files:
         results.append(read_as_json(path))
 
-    plot_file = os.path.join(args.output_folder, 'times.pdf') if args.output_folder is not None else None
-    error_file = os.path.join(args.output_folder, 'percentage_error.json') if args.output_folder is not None else None
+    output_folder, _name = os.path.split(args.result_files[0])
+
+    plot_file = None
+    if args.plot_file is not None:
+        plot_file = os.path.join(output_folder, args.plot_file)
+    
+    error_file = None
+    if args.error_file is not None:
+        error_file = os.path.join(output_folder, args.error_file)
 
     plot_regret(results, plot_file, args.concatenate, args.mode, args.window, args.start)
     get_percentage_error(results, error_file, args.concatenate)

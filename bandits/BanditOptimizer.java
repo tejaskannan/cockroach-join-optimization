@@ -9,7 +9,7 @@ import org.la4j.Vector;
 public abstract class BanditOptimizer implements Serializable {
 
     private static final double EPSILON = 0.5;
-    private static final double ANNEAL = 0.9;
+    private static final double ANNEAL = 0.75;
 
     private double[] rewards;
     private int[] counts;
@@ -134,10 +134,7 @@ public abstract class BanditOptimizer implements Serializable {
     }
 
     public double normalizeReward(double reward, int type) {
-        // System.out.printf("Type: %d, Reward: %f ", type, reward);
-        double normalized = this.rewardDistributions[type].getReward(reward);
-        // System.out.printf(" Normalized: %f\n", normalized);
-        return normalized;
+        return this.rewardDistributions[type].getReward(reward);
     }
 
     public int getNumArms() {

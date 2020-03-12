@@ -46,9 +46,7 @@ public class EXP4Optimizer extends BanditOptimizer {
         }
 
         // Normalize reward based on the type (add 1 to bring into range [0.0, 1.0])
-        double normalizedReward = super.normalizeReward(reward, type);
-
-        // System.out.printf("Normalized Reward: %f\n", normalizedReward);
+        double normalizedReward = super.normalizeReward(reward, type) + 1.0;
 
         // Stack contexts into a matrix (K x M)
         Matrix contextMatrix = Utils.stackContexts(contexts);
@@ -62,10 +60,11 @@ public class EXP4Optimizer extends BanditOptimizer {
         double[] actionRewardsArray = new double[distribution.length()];
         for (int i = 0; i < distribution.length(); i++) {
             if (i == arm) {
-                // System.out.println(distribution.get(i));
-                actionRewardsArray[i] = (1.0 / (Math.max(distribution.get(i) + this.gamma, 1e-3))) * (normalizedReward + MARGIN);
+                double rewardFactor = 1.0 / (Math.max(distribution.get(i) + this.gamma, 1e-3));
+                actionRewardsArray[i] = 1.0 - rewardFactor * (1.0 - normalizedReward);
+                // actionRewardsArray[i] = (1.0 / (Math.max(distribution.get(i) + this.gamma, 1e-3))) * (normalizedReward - MARGIN);
             } else {
-                actionRewardsArray[i] = 0.0;
+                actionRewardsArray[i] = 1.0;
             }
        }
 
@@ -106,8 +105,20 @@ public class EXP4Optimizer extends BanditOptimizer {
             arm = Utils.sampleDistribution(distribution, this.rand);
         }
 
-        // System.out.printf("Type: %d, Arm: %d, Distribution: %s ", type, arm, distribution.toString());
-
         return arm;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        
+        builder.append(this.getName());
+        builder.append(": ");
+        for (int i = 0; i < this.weights.length; i++) {
+            builder.append(this.weights[i]);
+            builder.append(" ");
+        }
+
+        return builder.toString();
     }
 }

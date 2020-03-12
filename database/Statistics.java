@@ -5,6 +5,7 @@ import java.lang.Iterable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
+import java.util.Random;
 
 import org.la4j.Vector;
 import org.la4j.vector.dense.BasicVector;
@@ -76,18 +77,28 @@ public class Statistics {
 
 
     private static double applyColumnSelectivity(String tableName, double tableCount, double distinctCount, HashMap<String, Double> whereSelectivity) {
+        /**
+         * Applies a given selectivity to a table column with the given number of distinct entries if the table is present
+         * in the given map.
+         */
         if (!whereSelectivity.containsKey(tableName)) {
             return distinctCount;
         }
 
+        // Remove fraction is (1 - selectivity)^(num rows / num distinct values)
         double removeProb = Math.pow(1.0 - whereSelectivity.get(tableName), tableCount / distinctCount);
         return distinctCount * (1.0 - removeProb);
     }
 
     private static double applyTableSelectivity(String tableName, double tableCount, HashMap<String, Double> whereSelectivity) {
+        /**
+         * Applies a given selectivity to table with the given number of rows if this table has a selectivity
+         * present in the provided map.
+         */
         if (!whereSelectivity.containsKey(tableName)) {
             return tableCount;
         }
+
         return tableCount * whereSelectivity.get(tableName);
     }
 
@@ -143,96 +154,6 @@ public class Statistics {
 
         Vector statsVector = Vector.fromArray(result);
         return statsVector;
-
-        // Normalize results and save into a single vector
-       // Vector result = new BasicVector(tableStats.size() + columnStats.size());
-
-       // HashSet<String> seenTables = new HashSet<String>();
-       // double minTableSize = Double.MAX_VALUE;
-       // for (int i = 0; i < tableStats.size(); i += 2) {
-       //     
-       //     double firstTableCount = tableStats.get(i);
-       //     String firstTableName = tableNames.get(i);
-       //     //if (whereMultipliers.containsKey(firstTableName)) {
-       //     //    firstTableCount *= whereMultipliers.get(firstTableName);
-       //     //}
-
-       //     //if (seenTables.contains(firstTableName)) {
-       //     //    firstTableCount = Math.min(firstTableCount, minTableSize);
-       //     //}
-
-       //     double secondTableCount = tableStats.get(i+1);
-       //     String secondTableName = tableNames.get(i+1);
-       //     //if (whereMultipliers.containsKey(secondTableName)) {
-       //     //    secondTableCount *= whereMultipliers.get(secondTableName);
-       //     //}
-
-       //     //if (seenTables.contains(secondTableName)) {
-       //     //    secondTableCount = Math.min(secondTableCount, minTableSize);
-       //     //}
-
-       //     double smallerCount = Math.min(firstTableCount, secondTableCount);
-       //     double largerCount = Math.max(firstTableCount, secondTableCount);
-       //     
-       //     result.set(i, largerCount);
-       //     result.set(i+1, smallerCount);
-
-       //     seenTables.add(firstTableName);
-       //     seenTables.add(secondTableName);
-
-       //     minTableSize = Math.min(smallerCount, minTableSize);
-       // }
-
-       // double selectivity;
-       // double remove_prob;
-       // int offset = tableStats.size();
-       // HashSet<String> seenColumns = new HashSet<String>();
-       // double minColumnCount = Double.MAX_VALUE;
-       // for (int i = 0; i < columnStats.size(); i += 2) {
-       //     
-       //     double firstColumnCount = columnStats.get(i);
-       //     //if (seenColumns.contains(columnNames.get(i))) {
-       //     //    firstColumnCount = Math.min(firstColumnCount, minColumnCount);
-       //     //}
-
-       //     double secondColumnCount = columnStats.get(i+1);
-       //     //if (seenColumns.contains(columnNames.get(i+1))) {
-       //     //    secondColumnCount = Math.min(secondColumnCount, minColumnCount);
-       //     //}
-
-       //     double smallerCount = Math.min(firstColumnCount, secondColumnCount);
-       //     double largerCount = Math.max(firstColumnCount, secondColumnCount);
-       //     
-       //     result.set(i + offset, largerCount);
-       //     result.set(i + offset + 1, smallerCount);
-
-       //     seenColumns.add(columnNames.get(i));
-       //     seenColumns.add(columnNames.get(i+1));
-
-       //     // Set selectivity
-       //    // double firstColumnSelectivity = columnStats.get(i);
-       //    // String firstTableName = tableNames.get(i);
-       //    // if (whereMultipliers.containsKey(firstTableName)) {
-       //    //     selectivity = whereMultipliers.get(firstTableName);
-       //    //     remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i) / firstColumnSelectivity);
-       //    //     firstColumnSelectivity -= firstColumnSelectivity * remove_prob;
-       //    // }
-
-       //    // double secondColumnSelectivity = columnStats.get(i+1);
-       //    // String secondTableName = tableNames.get(i+1);
-       //    // if (whereMultipliers.containsKey(secondTableName)) {
-       //    //     selectivity = whereMultipliers.get(secondTableName);
-       //    //     remove_prob = Math.pow(1.0 - selectivity, tableStats.get(i+1) / secondColumnSelectivity);
-       //    //     secondColumnSelectivity -= secondColumnSelectivity - secondColumnSelectivity * remove_prob;
-       //    // }
- 
-       //    // result.set(i + offset + columnStats.size(), firstColumnSelectivity);
-       //    // result.set(i + offset + columnStats.size() + 1, secondColumnSelectivity);
-
-       //     minColumnCount = Math.min(smallerCount, minColumnCount);
-       // }
-
-       // return result;
     }
 
 
